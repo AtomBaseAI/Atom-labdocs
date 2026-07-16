@@ -53,6 +53,7 @@ import { VisibilityToggle } from "@/components/admin/visibility-toggle";
 import { CourseGroupsSection } from "@/components/admin/course-groups-section";
 import type { Course, CourseGroup, Lab, Module } from "@/lib/types";
 import { courseAccent } from "@/lib/types";
+import type { LabLinkType } from "@/lib/types";
 import { toast } from "@/hooks/use-toast";
 import {
   Plus,
@@ -67,6 +68,9 @@ import {
   MoreVertical,
   FolderPlus,
   GripVertical,
+  Play,
+  FileArchive,
+  Ban,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -712,6 +716,104 @@ function LabPanel({
   );
 }
 
+/* ============ LAB LINK (download / watch) shared bits ============ */
+
+// The three link-type options shown in the admin dropdown.
+const LAB_LINK_OPTIONS: { value: LabLinkType; label: string; hint: string }[] = [
+  { value: "none", label: "No link", hint: "Default — no link shown" },
+  { value: "download", label: "Download", hint: "Show a download button (zip/file)" },
+  { value: "watch", label: "Watch", hint: "Show a play button (video/stream)" },
+];
+
+// Reusable form fields for choosing a link type + URL.
+// Used by both AddLabDialog and EditLabDialog.
+function LabLinkFields({
+  linkType,
+  linkUrl,
+  onTypeChange,
+  onUrlChange,
+}: {
+  linkType: LabLinkType;
+  linkUrl: string;
+  onTypeChange: (v: LabLinkType) => void;
+  onUrlChange: (v: string) => void;
+}) {
+  return (
+    <div className="space-y-3 rounded-lg border bg-muted/20 p-3">
+      <div>
+        <Label>Link</Label>
+        <Select value={linkType} onValueChange={(v) => onTypeChange(v as LabLinkType)}>
+          <SelectTrigger className="w-full">
+            <SelectValue placeholder="Select link type" />
+          </SelectTrigger>
+          <SelectContent>
+            {LAB_LINK_OPTIONS.map((opt) => (
+              <SelectItem key={opt.value} value={opt.value}>
+                <div className="flex flex-col">
+                  <span className="font-medium">{opt.label}</span>
+                  <span className="text-xs text-muted-foreground">{opt.hint}</span>
+                </div>
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+      {linkType !== "none" && (
+        <div>
+          <Label>{linkType === "download" ? "Download URL" : "Watch URL"}</Label>
+          <Input
+            value={linkUrl}
+            onChange={(e) => onUrlChange(e.target.value)}
+            placeholder={
+              linkType === "download"
+                ? "https://example.com/lab-assets.zip"
+                : "https://www.youtube.com/watch?v=..."
+            }
+            type="url"
+          />
+          <p className="mt-1 text-xs text-muted-foreground">
+            Opens in a new tab when the {linkType === "download" ? "download" : "play"} button is clicked.
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// The icon cell rendered in the admin LabsTable "Link" column.
+// - "none"      -> muted Ban icon, not clickable (disabled)
+// - "download"  -> FileArchive (zip) icon, clickable (opens link in new tab)
+// - "watch"     -> Play icon, clickable (opens link in new tab)
+function AdminLabLinkCell({ lab }: { lab: Pick<Lab, "linkType" | "linkUrl"> }) {
+  if (lab.linkType === "none" || !lab.linkUrl) {
+    return (
+      <span
+        className="inline-flex h-8 w-8 cursor-not-allowed items-center justify-center rounded-md text-muted-foreground/40"
+        title="No link"
+        aria-disabled="true"
+      >
+        <Ban className="h-4 w-4" />
+      </span>
+    );
+  }
+  const isDownload = lab.linkType === "download";
+  const Icon = isDownload ? FileArchive : Play;
+  const label = isDownload ? "Download lab assets" : "Watch lab video";
+  return (
+    <a
+      href={lab.linkUrl}
+      target="_blank"
+      rel="noopener noreferrer"
+      onClick={(e) => e.stopPropagation()}
+      className="inline-flex h-8 w-8 items-center justify-center rounded-md border bg-background text-foreground transition hover:bg-accent hover:text-accent-foreground"
+      title={label}
+      aria-label={label}
+    >
+      <Icon className="h-4 w-4" />
+    </a>
+  );
+}
+
 /* ============ INLINE ADD FORMS ============ */
 
 function AddLabDialog({ courseId }: { courseId: string }) {
@@ -719,12 +821,14 @@ function AddLabDialog({ courseId }: { courseId: string }) {
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
+  const [linkType, setLinkType] = useState<LabLinkType>("none");
+  const [linkUrl, setLinkUrl] = useState("");
   const mut = useMutation({
     mutationFn: () =>
       fetch("/api/labs", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title, description, courseId }),
+        body: JSON.stringify({ title, description, courseId, linkType, linkUrl }),
       }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["admin-course-nested", courseId] });
@@ -733,6 +837,8 @@ function AddLabDialog({ courseId }: { courseId: string }) {
       toast({ title: "Lab added", description: title.trim() });
       setTitle("");
       setDescription("");
+      setLinkType("none");
+      setLinkUrl("");
       setOpen(false);
     },
     onError: () => {
@@ -776,6 +882,15 @@ function AddLabDialog({ courseId }: { courseId: string }) {
               placeholder="Short description (optional)"
             />
           </div>
+          <LabLinkFields
+            linkType={linkType}
+            linkUrl={linkUrl}
+            onTypeChange={(v) => {
+              setLinkType(v);
+              if (v === "none") setLinkUrl("");
+            }}
+            onUrlChange={setLinkUrl}
+          />
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => setOpen(false)}>
               Cancel
@@ -877,7 +992,7 @@ function AddModuleDialog({
 
 /* ============ ROW COMPONENTS (sortable tables) ============ */
 
-const LAB_COLS = "grid-cols-[40px_44px_1fr_90px_110px_44px_44px]";
+const LAB_COLS = "grid-cols-[40px_44px_1fr_90px_80px_110px_44px_44px]";
 const MODULE_COLS = "grid-cols-[40px_44px_1fr_90px_90px_44px_44px]";
 
 function LabsTable({
@@ -919,7 +1034,7 @@ function LabsTable({
   return (
     <div className="overflow-hidden rounded-lg border">
       <div className="overflow-x-auto">
-        <div className="min-w-[680px]">
+        <div className="min-w-[760px]">
           <div
             className={cn(
               LAB_COLS,
@@ -930,6 +1045,7 @@ function LabsTable({
             <div></div>
             <div>Lab</div>
             <div className="text-center">Modules</div>
+            <div className="text-center">Link</div>
             <div className="text-center">Manage</div>
             <div className="text-center">Edit</div>
             <div className="text-center">Delete</div>
@@ -1017,6 +1133,9 @@ function SortableLabRow({
         <span className="inline-flex min-w-[28px] justify-center rounded-full bg-muted px-2 py-0.5 text-xs font-medium">
           {lab._count?.modules ?? 0}
         </span>
+      </div>
+      <div className="flex justify-center">
+        <AdminLabLinkCell lab={lab} />
       </div>
       <div className="flex justify-center">
         <Button variant="outline" size="sm" onClick={onOpen} className="gap-1.5">
@@ -1543,16 +1662,20 @@ function EditLabDialog({ lab, asItem, iconOnly }: { lab: Lab; asItem?: boolean; 
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState(lab.title);
   const [description, setDescription] = useState(lab.description ?? "");
+  const [linkType, setLinkType] = useState<LabLinkType>(lab.linkType ?? "none");
+  const [linkUrl, setLinkUrl] = useState(lab.linkUrl ?? "");
   useEffectReset(() => {
     setTitle(lab.title);
     setDescription(lab.description ?? "");
+    setLinkType(lab.linkType ?? "none");
+    setLinkUrl(lab.linkUrl ?? "");
   }, [lab, open]);
   const mut = useMutation({
     mutationFn: () =>
       fetch("/api/labs/" + lab.id, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title, description }),
+        body: JSON.stringify({ title, description, linkType, linkUrl }),
       }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["admin-course-nested"] });
@@ -1598,6 +1721,15 @@ function EditLabDialog({ lab, asItem, iconOnly }: { lab: Lab; asItem?: boolean; 
             <Label>Description</Label>
             <Textarea value={description} onChange={(e) => setDescription(e.target.value)} />
           </div>
+          <LabLinkFields
+            linkType={linkType}
+            linkUrl={linkUrl}
+            onTypeChange={(v) => {
+              setLinkType(v);
+              if (v === "none") setLinkUrl("");
+            }}
+            onUrlChange={setLinkUrl}
+          />
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>

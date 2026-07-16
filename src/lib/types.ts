@@ -35,6 +35,12 @@ export type Course = {
   _count?: { labs: number };
 };
 
+// The kind of external link a lab can expose.
+// "none"   -> no link (default)
+// "download" -> a downloadable resource (zip/file), shown with a download icon
+// "watch"  -> a watchable resource (video/stream), shown with a play icon
+export type LabLinkType = "none" | "download" | "watch";
+
 export type Lab = {
   id: string;
   courseId: string;
@@ -42,6 +48,8 @@ export type Lab = {
   description: string | null;
   order: number;
   hidden: boolean;
+  linkType: LabLinkType;
+  linkUrl: string | null;
   createdAt: string;
   updatedAt: string;
   modules?: Module[];

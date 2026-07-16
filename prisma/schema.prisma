@@ -6,8 +6,12 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  // Neon's pooled endpoint is used for the app at runtime. DDL operations
+  // (prisma db push / migrations) need a direct (non-pooled) connection,
+  // so directUrl points at the non-pooler host.
+  directUrl = env("DIRECT_URL")
 }
 
 model CourseGroup {
@@ -18,8 +22,10 @@ model CourseGroup {
   color       String? // accent color
   order       Int      @default(0)
   courses     Course[]
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt   DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt   DateTime @updatedAt @db.Timestamptz(6)
+
+  @@index([order])
 }
 
 model Course {
@@ -33,8 +39,14 @@ model Course {
   order       Int      @default(0)
   hidden      Boolean  @default(false) // hide from public view
   labs        Lab[]
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt   DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt   DateTime @updatedAt @db.Timestamptz(6)
+
+  // Postgres does NOT auto-index foreign-key columns, so we add them explicitly.
+  // These indexes cover the common public/admin list queries (filter by group,
+  // filter hidden, order by position).
+  @@index([groupId])
+  @@index([hidden, order])
 }
 
 model Lab {
@@ -45,9 +57,15 @@ model Lab {
   description String?
   order       Int      @default(0)
   hidden      Boolean  @default(false) // hide from public view
+  // Link feature: "none" (default) | "download" | "watch"
+  linkType    String   @default("none")
+  linkUrl     String?
   modules     Module[]
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt   DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt   DateTime @updatedAt @db.Timestamptz(6)
+
+  // Covers: db.lab.findMany({ where: { courseId, hidden }, orderBy: { order } })
+  @@index([courseId, hidden, order])
 }
 
 model Module {
@@ -68,8 +86,11 @@ model Module {
   order       Int      @default(0)
   hidden      Boolean  @default(false) // hide from public view
   steps       Step[]
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt   DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt   DateTime @updatedAt @db.Timestamptz(6)
+
+  // Covers: db.module.findMany({ where: { labId, hidden }, orderBy: { order } })
+  @@index([labId, hidden, order])
 }
 
 model Step {
@@ -83,6 +104,9 @@ model Step {
   image        String? // image (base64 data url)
   imageCaption String?
   order        Int      @default(0)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  createdAt    DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt    DateTime @updatedAt @db.Timestamptz(6)
+
+  // Covers: db.step.findMany({ where: { moduleId }, orderBy: { order } })
+  @@index([moduleId, order])
 }

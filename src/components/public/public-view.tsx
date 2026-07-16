@@ -17,6 +17,8 @@ import {
   BookOpen,
   FileText,
   ListOrdered,
+  Play as PlayIcon,
+  FileArchive,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -282,6 +284,10 @@ function CourseCard({
 }
 
 function LabCard({ lab, index, accent, onClick }: { lab: Lab; index: number; accent: string; onClick: () => void }) {
+  const hasLink = lab.linkType !== "none" && !!lab.linkUrl;
+  const isDownload = lab.linkType === "download";
+  const LinkIcon = isDownload ? FileArchive : PlayIcon;
+  const linkLabel = isDownload ? "Download lab assets" : "Watch lab video";
   return (
     <Card
       className="group cursor-pointer p-5 transition-all hover:shadow-md hover:-translate-y-0.5"
@@ -299,13 +305,32 @@ function LabCard({ lab, index, accent, onClick }: { lab: Lab; index: number; acc
           {(lab._count?.modules ?? 0)} modules
         </span>
       </div>
-      <h3 className="text-base font-semibold leading-tight transition-colors group-hover:text-[var(--accent)]">{lab.title}</h3>
+      <div className="flex items-start gap-2">
+        <h3 className="min-w-0 flex-1 text-base font-semibold leading-tight transition-colors group-hover:text-[var(--accent)]">{lab.title}</h3>
+        {hasLink && (
+          <a
+            href={lab.linkUrl!}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={(e) => e.stopPropagation()}
+            className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border bg-background text-foreground transition hover:bg-accent hover:text-accent-foreground"
+            title={linkLabel}
+            aria-label={linkLabel}
+          >
+            <LinkIcon className="h-3.5 w-3.5" />
+          </a>
+        )}
+      </div>
       {lab.description && (
         <p className="mt-1.5 line-clamp-2 text-sm text-muted-foreground">{lab.description}</p>
       )}
       <div className="mt-4 flex items-center gap-1.5 text-sm font-medium" style={{ color: accent }}>
-        Open lab
-        <ChevronRight className="h-4 w-4 transition group-hover:translate-x-0.5" />
+        {hasLink ? (isDownload ? "Download" : "Watch") : "Open lab"}
+        {hasLink ? (
+          <LinkIcon className="h-4 w-4" />
+        ) : (
+          <ChevronRight className="h-4 w-4 transition group-hover:translate-x-0.5" />
+        )}
       </div>
     </Card>
   );

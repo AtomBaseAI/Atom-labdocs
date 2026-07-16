@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireAdmin } from "@/lib/auth";
+import { normalizeLabLink, type LabLinkInput } from "@/lib/lab-link";
 
 export async function GET(
   req: NextRequest,
@@ -38,7 +39,11 @@ export async function PUT(
   }
   const { id } = await params;
   const body = await req.json();
-  const { title, description, order, hidden } = body;
+  const { title, description, order, hidden, linkType, linkUrl } = body;
+  const link =
+    linkType !== undefined || linkUrl !== undefined
+      ? normalizeLabLink({ linkType, linkUrl } as LabLinkInput)
+      : null;
   const lab = await db.lab.update({
     where: { id },
     data: {
@@ -46,6 +51,7 @@ export async function PUT(
       ...(description !== undefined && { description }),
       ...(order !== undefined && { order }),
       ...(hidden !== undefined && { hidden: !!hidden }),
+      ...(link && { linkType: link.linkType, linkUrl: link.linkUrl }),
     },
   });
   return NextResponse.json(lab);
