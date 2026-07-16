@@ -1,0 +1,88 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model CourseGroup {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  icon        String? // emoji icon
+  color       String? // accent color
+  order       Int      @default(0)
+  courses     Course[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Course {
+  id          String   @id @default(cuid())
+  groupId     String?
+  group       CourseGroup? @relation(fields: [groupId], references: [id], onDelete: SetNull)
+  title       String
+  description String?
+  icon        String? // emoji icon
+  color       String? // accent color (tailwind-ish hex)
+  order       Int      @default(0)
+  hidden      Boolean  @default(false) // hide from public view
+  labs        Lab[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Lab {
+  id          String   @id @default(cuid())
+  courseId    String
+  course      Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  title       String
+  description String?
+  order       Int      @default(0)
+  hidden      Boolean  @default(false) // hide from public view
+  modules     Module[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Module {
+  id          String   @id @default(cuid())
+  labId       String
+  lab         Lab      @relation(fields: [labId], references: [id], onDelete: Cascade)
+  title       String
+  // Part 1: Title & Explanation
+  explanation String? // rich text HTML
+  // Part 2: Lab Overview & Flow
+  overview    String? // rich text HTML
+  flow        String? // JSON array of flow nodes [{label, type}]
+  // Part 3: Lab Procedure with Steps (stored as related Step rows)
+  // Part 4: Output
+  output      String? // rich text HTML
+  // Part 5: Conclusion
+  conclusion  String? // rich text HTML
+  order       Int      @default(0)
+  hidden      Boolean  @default(false) // hide from public view
+  steps       Step[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Step {
+  id           String   @id @default(cuid())
+  moduleId     String
+  module       Module   @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  title        String
+  description  String? // rich text HTML
+  code         String? // code snippet text
+  codeLang     String? // language for syntax highlighting
+  image        String? // image (base64 data url)
+  imageCaption String?
+  order        Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
