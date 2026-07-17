@@ -21,7 +21,7 @@ export const metadata: Metadata = {
   keywords: ["lab", "documentation", "slides", "education", "procedure"],
   authors: [{ name: "LabDoc" }],
   icons: {
-    icon: "/favicon_DARK.ico",
+    icon: "/favicon.ico",
   },
 };
 
