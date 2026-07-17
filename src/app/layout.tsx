@@ -17,11 +17,11 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "LabDoc — Interactive Lab Procedure Documentation",
-  description: "Document and present lab procedures as slide-based modules with rich text, code snippets, flow diagrams and images.",
+  description: "Document and present lab procedures as slide-based modules with rich text, code snippets. Built by ATOM.",
   keywords: ["lab", "documentation", "slides", "education", "procedure"],
   authors: [{ name: "LabDoc" }],
   icons: {
-    icon: "https://z-cdn.chatglm.cn/z-ai/static/logo.svg",
+    icon: "/favicon_Dark.ico",
   },
 };
 
