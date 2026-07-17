@@ -163,6 +163,7 @@ function CreateGroupDialog() {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
+  const [color, setColor] = useState(GROUP_COLORS[0]);
   const mut = useMutation({
     mutationFn: () =>
       fetch("/api/course-groups", {
@@ -176,6 +177,7 @@ function CreateGroupDialog() {
       setOpen(false);
       setName("");
       setDescription("");
+      setColor(GROUP_COLORS[0]);
     },
     onError: () => {
       toast({ title: "Failed to create group", variant: "destructive" });
