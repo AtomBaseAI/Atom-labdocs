@@ -22,7 +22,7 @@ type Props = {
 };
 
 export function AdminLoginDialog({ open, onOpenChange, onSuccess }: Props) {
-  const [email, setEmail] = useState("admin@labdoc.com");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -69,7 +69,7 @@ export function AdminLoginDialog({ open, onOpenChange, onSuccess }: Props) {
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="admin@labdoc.com"
+              placeholder="you@example.com"
               autoComplete="email"
               required
             />
@@ -91,9 +91,6 @@ export function AdminLoginDialog({ open, onOpenChange, onSuccess }: Props) {
               {error}
             </p>
           )}
-          <div className="rounded-md border border-dashed bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
-            <span className="font-medium">Demo credentials:</span> admin@labdoc.com / admin123
-          </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel

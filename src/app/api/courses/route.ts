@@ -17,6 +17,19 @@ export async function GET(req: NextRequest) {
           labs: includeHidden ? true : { where: { hidden: false } },
         },
       },
+      // Nested module counts per course (via labs) so the admin dashboard can
+      // show a real Modules total. Filters mirror the labs filter above so the
+      // public + admin views stay consistent.
+      labs: {
+        where: includeHidden ? undefined : { hidden: false },
+        select: {
+          _count: {
+            select: {
+              modules: includeHidden ? true : { where: { hidden: false } },
+            },
+          },
+        },
+      },
     },
   });
   return NextResponse.json(courses);

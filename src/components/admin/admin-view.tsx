@@ -52,8 +52,14 @@ import { ModuleEditor } from "@/components/admin/module-editor";
 import { VisibilityToggle } from "@/components/admin/visibility-toggle";
 import { CourseGroupsSection } from "@/components/admin/course-groups-section";
 import type { Course, CourseGroup, Lab, Module } from "@/lib/types";
-import { courseAccent } from "@/lib/types";
+import { courseAccent, DEFAULT_ACCENT } from "@/lib/types";
 import type { LabLinkType } from "@/lib/types";
+import {
+  Accordion,
+  AccordionItem,
+  AccordionTrigger,
+  AccordionContent,
+} from "@/components/ui/accordion";
 import { toast } from "@/hooks/use-toast";
 import {
   Plus,
@@ -64,7 +70,9 @@ import {
   FlaskConical,
   Presentation,
   BookOpen,
+  BookText,
   Layers,
+  Layers2,
   MoreVertical,
   FolderPlus,
   GripVertical,
@@ -93,7 +101,9 @@ async function fetchJson<T>(url: string): Promise<T> {
   return res.json();
 }
 
-type CourseTree = Course & { labs: (Lab & { modules: Module[] })[] };
+type CourseTree = Course & {
+  labs: (Lab & { modules: Module[]; _count?: { modules: number } })[];
+};
 
 export function AdminView() {
   const {
@@ -179,31 +189,26 @@ export function AdminView() {
                   ))}
                 </div>
               ) : coursesQuery.data && coursesQuery.data.length > 0 ? (
-                <div className="space-y-1">
-                  {coursesQuery.data.map((course) => (
-                    <CourseTreeItem
-                      key={course.id}
-                      course={course}
-                      selectedCourseId={adminCourseId}
-                      selectedLabId={adminLabId}
-                      onSelectCourse={(id) =>
-                        setAdminCourse(adminCourseId === id ? null : id)
-                      }
-                      onSelectLab={(courseId, labId) => {
-                        setAdminCourse(courseId);
-                        setAdminLab(adminLabId === labId ? null : labId);
-                      }}
-                      onSelectModule={(courseId, labId, moduleId) => {
-                        setAdminCourse(courseId);
-                        setAdminLab(labId);
-                        setAdminModule(moduleId);
-                      }}
-                      expandedCourse={adminCourseId}
-                      nestedCourse={courseQuery.data}
-                      nestedLab={labQuery.data}
-                    />
-                  ))}
-                </div>
+                <GroupedCourseTree
+                  courses={coursesQuery.data}
+                  selectedCourseId={adminCourseId}
+                  selectedLabId={adminLabId}
+                  onSelectCourse={(id) =>
+                    setAdminCourse(adminCourseId === id ? null : id)
+                  }
+                  onSelectLab={(courseId, labId) => {
+                    setAdminCourse(courseId);
+                    setAdminLab(adminLabId === labId ? null : labId);
+                  }}
+                  onSelectModule={(courseId, labId, moduleId) => {
+                    setAdminCourse(courseId);
+                    setAdminLab(labId);
+                    setAdminModule(moduleId);
+                  }}
+                  expandedCourse={adminCourseId}
+                  nestedCourse={courseQuery.data}
+                  nestedLab={labQuery.data}
+                />
               ) : (
                 <div className="p-4 text-center text-xs text-muted-foreground">
                   No courses yet. Click + to create one.
@@ -232,6 +237,116 @@ export function AdminView() {
 }
 
 /* ============ SIDEBAR TREE ============ */
+
+// Groups courses by their course group and renders each group as a collapsible
+// accordion section. Courses without a group land in a trailing "Ungrouped"
+// section. The accordion auto-expands any group that contains the currently
+// selected course so the selection stays visible.
+function GroupedCourseTree({
+  courses,
+  selectedCourseId,
+  selectedLabId,
+  onSelectCourse,
+  onSelectLab,
+  onSelectModule,
+  expandedCourse,
+  nestedCourse,
+  nestedLab,
+}: {
+  courses: Course[];
+  selectedCourseId: string | null;
+  selectedLabId: string | null;
+  onSelectCourse: (id: string) => void;
+  onSelectLab: (courseId: string, labId: string) => void;
+  onSelectModule: (courseId: string, labId: string, moduleId: string) => void;
+  expandedCourse: string | null;
+  nestedCourse?: CourseTree;
+  nestedLab?: Lab & { course: Course; modules: Module[] };
+}) {
+  const groupsQuery = useCourseGroups();
+  const groups = groupsQuery.data ?? [];
+
+  // Partition courses: grouped by groupId, plus an "ungrouped" bucket.
+  const grouped: { group: CourseGroup | null; items: Course[] }[] = [];
+  for (const g of groups) {
+    const items = courses.filter((c) => c.groupId === g.id);
+    if (items.length > 0) grouped.push({ group: g, items });
+  }
+  const ungrouped = courses.filter((c) => !c.groupId);
+  if (ungrouped.length > 0) grouped.push({ group: null, items: ungrouped });
+
+  // Default-open any group containing the selected course.
+  const defaultValues: string[] = grouped
+    .map((sec, i) =>
+      sec.items.some((c) => c.id === selectedCourseId) ? `grp-${i}` : null
+    )
+    .filter((v): v is string => v !== null);
+
+  const treeItemProps = {
+    selectedCourseId,
+    selectedLabId,
+    onSelectCourse,
+    onSelectLab,
+    onSelectModule,
+    expandedCourse,
+    nestedCourse,
+    nestedLab,
+  };
+
+  if (grouped.length === 0) {
+    return (
+      <div className="p-4 text-center text-xs text-muted-foreground">
+        No courses yet. Click + to create one.
+      </div>
+    );
+  }
+
+  return (
+    <Accordion
+      type="multiple"
+      defaultValue={defaultValues}
+      className="w-full"
+    >
+      {grouped.map((section, i) => {
+        const value = `grp-${i}`;
+        const group = section.group;
+        const color = group?.color ?? DEFAULT_ACCENT;
+        return (
+          <AccordionItem key={value} value={value} className="border-none">
+            <AccordionTrigger className="rounded-md px-2 py-1.5 text-sm font-medium hover:bg-muted [&>svg]:hidden">
+              <span className="flex min-w-0 flex-1 items-center gap-1.5 text-left">
+                <span
+                  className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md"
+                  style={{ background: color + "22", color }}
+                >
+                  <Layers2 className="h-3.5 w-3.5" />
+                </span>
+                <span className="truncate">
+                  {group ? group.name : "Ungrouped"}
+                </span>
+                <span className="shrink-0 rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-muted-foreground">
+                  {section.items.length}
+                </span>
+              </span>
+              <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform duration-200" />
+            </AccordionTrigger>
+            <AccordionContent className="pb-1">
+              <div className="space-y-1 border-l pl-2">
+                {section.items.map((course) => (
+                  <CourseTreeItem
+                    key={course.id}
+                    course={course}
+                    {...treeItemProps}
+                  />
+                ))}
+              </div>
+            </AccordionContent>
+          </AccordionItem>
+        );
+      })}
+    </Accordion>
+  );
+}
 
 function CourseTreeItem({
   course,
@@ -286,7 +401,7 @@ function CourseTreeItem({
             ) : (
               <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
             )}
-            <span className="shrink-0 text-base leading-none">{course.icon ?? "📘"}</span>
+            <BookText className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
             <span className="truncate">{course.title}</span>
             {course.hidden && (
               <span className="shrink-0 rounded bg-amber-500/15 px-1.5 py-0.5 text-[9px] font-semibold uppercase text-amber-700 dark:text-amber-400">
@@ -483,6 +598,14 @@ function OverviewPanel({
   onSelectCourse: (id: string | null) => void;
 }) {
   const totalLabs = courses.reduce((acc, c) => acc + (c._count?.labs ?? 0), 0);
+  // Sum modules across all courses. The /api/courses response now includes
+  // each course's labs with a nested _count.modules, so we aggregate here.
+  const totalModules = courses.reduce(
+    (acc, c) =>
+      acc +
+      (c.labs?.reduce((a, l) => a + (l._count?.modules ?? 0), 0) ?? 0),
+    0
+  );
 
   return (
     <div className="space-y-5">
@@ -497,7 +620,7 @@ function OverviewPanel({
       <div className="grid gap-3 sm:grid-cols-3">
         <StatCard icon={BookOpen} label="Courses" value={courses.length} color="text-teal-600" />
         <StatCard icon={FlaskConical} label="Labs" value={totalLabs} color="text-violet-600" />
-        <StatCard icon={Presentation} label="Modules" value="—" color="text-amber-600" />
+        <StatCard icon={Presentation} label="Modules" value={totalModules} color="text-amber-600" />
       </div>
 
       {/* Quick actions */}
@@ -541,10 +664,10 @@ function OverviewPanel({
                   className="flex min-w-0 flex-1 items-center gap-3 text-left"
                 >
                   <span
-                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-lg"
-                    style={{ background: courseAccent(c) + "22" }}
+                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg"
+                    style={{ background: courseAccent(c) + "22", color: courseAccent(c) }}
                   >
-                    {c.icon ?? "📘"}
+                    <BookText className="h-4 w-4" />
                   </span>
                   <div className="min-w-0">
                     <p className="flex items-center gap-1.5">
@@ -613,10 +736,10 @@ function CoursePanel({
       {/* Course header */}
       <div className="flex flex-wrap items-start gap-3">
         <span
-          className="flex h-12 w-12 items-center justify-center rounded-xl text-2xl"
-          style={{ background: courseAccent(course) + "22" }}
+          className="flex h-12 w-12 items-center justify-center rounded-xl"
+          style={{ background: courseAccent(course) + "22", color: courseAccent(course) }}
         >
-          {course.icon ?? "📘"}
+          <BookText className="h-6 w-6" />
         </span>
         <div className="min-w-0 flex-1">
           <h1 className="text-2xl font-bold tracking-tight">{course.title}</h1>
@@ -689,7 +812,7 @@ function LabPanel({
         </div>
         <div className="flex shrink-0 flex-wrap items-center gap-2">
           <EditLabDialog lab={lab} />
-          <AddModuleDialog labId={lab.id} onCreated={(id) => onSelectModule(id)} />
+          <AddModuleDialog labId={lab.id} courseId={lab.course.id} onCreated={(id) => onSelectModule(id)} />
         </div>
       </div>
 
@@ -915,9 +1038,11 @@ function AddLabDialog({ courseId }: { courseId: string }) {
 
 function AddModuleDialog({
   labId,
+  courseId,
   onCreated,
 }: {
   labId: string;
+  courseId: string;
   onCreated: (id: string) => void;
 }) {
   const qc = useQueryClient();
@@ -934,6 +1059,9 @@ function AddModuleDialog({
       const created = await res.json();
       qc.invalidateQueries({ queryKey: ["admin-lab-nested", labId] });
       qc.invalidateQueries({ queryKey: ["lab", labId] });
+      // Refresh the course tree so lab module counts stay in sync.
+      qc.invalidateQueries({ queryKey: ["admin-course-nested", courseId] });
+      qc.invalidateQueries({ queryKey: ["admin-courses"] });
       toast({ title: "Module added", description: "Opening editor..." });
       setTitle("");
       setOpen(false);
@@ -1364,6 +1492,9 @@ function DeleteModuleButton({ module }: { module: Module }) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["admin-lab-nested"] });
       qc.invalidateQueries({ queryKey: ["lab"] });
+      // Refresh the course tree so lab module counts stay in sync after delete.
+      qc.invalidateQueries({ queryKey: ["admin-course-nested"] });
+      qc.invalidateQueries({ queryKey: ["admin-courses"] });
       toast({ title: "Module deleted" });
     },
   });
@@ -1427,7 +1558,6 @@ function AdminBreadcrumbs({ items }: { items: { label: string; onClick?: () => v
 
 /* ============ COURSE CREATE/EDIT DIALOGS ============ */
 
-const EMOJIS = ["📘", "🧪", "⚗️", "🔬", "🧬", "💻", "⚙️", "🧮", "📐", "📊", "🌐", "🤖", "📡", "🔋", "🧲"];
 
 function useCourseGroups() {
   return useQuery({
@@ -1456,7 +1586,10 @@ function GroupSelect({
           <SelectItem value="none">— No group —</SelectItem>
           {groups.map((g) => (
             <SelectItem key={g.id} value={g.id}>
-              {g.icon ?? "📁"} {g.name}
+              <span className="inline-flex items-center gap-1.5">
+                <Layers2 className="h-3.5 w-3.5" style={{ color: g.color ?? DEFAULT_ACCENT }} />
+                {g.name}
+              </span>
             </SelectItem>
           ))}
         </SelectContent>
@@ -1470,14 +1603,13 @@ function CreateCourseDialog({ compact }: { compact?: boolean }) {
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [icon, setIcon] = useState(EMOJIS[0]);
   const [groupId, setGroupId] = useState("none");
   const mut = useMutation({
     mutationFn: () =>
       fetch("/api/courses", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title, description, icon, groupId: groupId === "none" ? null : groupId }),
+        body: JSON.stringify({ title, description, groupId: groupId === "none" ? null : groupId }),
       }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["admin-courses"] });
@@ -1494,7 +1626,7 @@ function CreateCourseDialog({ compact }: { compact?: boolean }) {
   });
 
   const trigger = compact ? (
-    <Button variant="ghost" size="icon" className="h-7 w-7" title="New course">
+    <Button variant="ghost" size="icon" className="h-7 w-7" title="New course" onClick={() => setOpen(true)}>
       <Plus className="h-4 w-4" />
     </Button>
   ) : (
@@ -1522,24 +1654,6 @@ function CreateCourseDialog({ compact }: { compact?: boolean }) {
             <Label>Description</Label>
             <Textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Short description" />
           </div>
-          <div>
-            <Label>Icon</Label>
-            <div className="mt-1 flex flex-wrap gap-1.5">
-              {EMOJIS.map((e) => (
-                <button
-                  key={e}
-                  type="button"
-                  onClick={() => setIcon(e)}
-                  className={cn(
-                    "flex h-9 w-9 items-center justify-center rounded-lg border text-lg",
-                    icon === e ? "border-primary bg-primary/10" : ""
-                  )}
-                >
-                  {e}
-                </button>
-              ))}
-            </div>
-          </div>
           <p className="rounded-md border border-dashed bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
             The accent color is inherited from the selected course group. Assign a group above to color this course.
           </p>
@@ -1560,13 +1674,11 @@ function EditCourseDialog({ course, compact, asItem }: { course: Course; compact
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState(course.title);
   const [description, setDescription] = useState(course.description ?? "");
-  const [icon, setIcon] = useState(course.icon ?? EMOJIS[0]);
   const [groupId, setGroupId] = useState(course.groupId ?? "none");
 
   useEffectReset(() => {
     setTitle(course.title);
     setDescription(course.description ?? "");
-    setIcon(course.icon ?? EMOJIS[0]);
     setGroupId(course.groupId ?? "none");
   }, [course, open]);
 
@@ -1575,7 +1687,7 @@ function EditCourseDialog({ course, compact, asItem }: { course: Course; compact
       fetch("/api/courses/" + course.id, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title, description, icon, groupId: groupId === "none" ? null : groupId }),
+        body: JSON.stringify({ title, description, groupId: groupId === "none" ? null : groupId }),
       }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["admin-courses"] });
@@ -1623,24 +1735,6 @@ function EditCourseDialog({ course, compact, asItem }: { course: Course; compact
           <div>
             <Label>Description</Label>
             <Textarea value={description} onChange={(e) => setDescription(e.target.value)} />
-          </div>
-          <div>
-            <Label>Icon</Label>
-            <div className="mt-1 flex flex-wrap gap-1.5">
-              {EMOJIS.map((e) => (
-                <button
-                  key={e}
-                  type="button"
-                  onClick={() => setIcon(e)}
-                  className={cn(
-                    "flex h-9 w-9 items-center justify-center rounded-lg border text-lg",
-                    icon === e ? "border-primary bg-primary/10" : ""
-                  )}
-                >
-                  {e}
-                </button>
-              ))}
-            </div>
           </div>
           <p className="rounded-md border border-dashed bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
             The accent color is inherited from the selected course group. Assign a group above to color this course.

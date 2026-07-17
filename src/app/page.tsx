@@ -144,7 +144,9 @@ export default function Home() {
       <main
         className={cn(
           "w-full flex-1 px-4 py-6 md:py-8 md:px-6",
-          mode === "admin" && isAdmin ? "" : "mx-auto max-w-6xl"
+          // Public + logged-in admin use the full viewport width; only the
+          // admin-locked (sign-in) screen stays centered for readability.
+          mode === "admin" && !isAdmin ? "mx-auto max-w-6xl" : ""
         )}
       >
         {mode === "public" ? (

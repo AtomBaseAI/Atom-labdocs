@@ -33,7 +33,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { toast } from "@/hooks/use-toast";
 import type { CourseGroup } from "@/lib/types";
-import { FolderPlus, Pencil, Trash2, MoreVertical, Folder } from "lucide-react";
+import { DEFAULT_ACCENT } from "@/lib/types";
+import { FolderPlus, Pencil, Trash2, MoreVertical, Layers2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 async function fetchJson<T>(url: string): Promise<T> {
@@ -42,7 +43,6 @@ async function fetchJson<T>(url: string): Promise<T> {
   return res.json();
 }
 
-const GROUP_EMOJIS = ["📁", "📚", "🗂️", "🗃️", "📦", "🏷️", "🧩", "🎨", "⚙️", "🧱"];
 const GROUP_COLORS = ["#0d9488", "#0891b2", "#7c3aed", "#c026d3", "#db2777", "#e11d48", "#ea580c", "#ca8a04", "#16a34a", "#0f766e"];
 
 export function CourseGroupsSection() {
@@ -68,7 +68,7 @@ export function CourseGroupsSection() {
     <Card className="p-5">
       <div className="mb-3 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Folder className="h-4 w-4 text-primary" />
+          <Layers2 className="h-4 w-4 text-primary" />
           <h2 className="text-sm font-semibold">Course Groups</h2>
           <span className="text-xs text-muted-foreground">
             ({groupsQuery.data?.length ?? 0})
@@ -93,10 +93,10 @@ export function CourseGroupsSection() {
               className="flex items-center gap-3 rounded-lg border p-2.5 transition hover:bg-muted/30"
             >
               <span
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-lg"
-                style={{ background: (group.color ?? "#0d9488") + "22" }}
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg"
+                style={{ background: (group.color ?? DEFAULT_ACCENT) + "22", color: group.color ?? DEFAULT_ACCENT }}
               >
-                {group.icon ?? "📁"}
+                <Layers2 className="h-4 w-4" />
               </span>
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-medium">{group.name}</p>
@@ -163,14 +163,12 @@ function CreateGroupDialog() {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
-  const [icon, setIcon] = useState(GROUP_EMOJIS[0]);
-  const [color, setColor] = useState(GROUP_COLORS[0]);
   const mut = useMutation({
     mutationFn: () =>
       fetch("/api/course-groups", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, description, icon, color }),
+        body: JSON.stringify({ name, description, color }),
       }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["admin-course-groups"] });
@@ -202,24 +200,6 @@ function CreateGroupDialog() {
           <div>
             <Label>Description</Label>
             <Textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Short description (optional)" />
-          </div>
-          <div>
-            <Label>Icon</Label>
-            <div className="mt-1 flex flex-wrap gap-1.5">
-              {GROUP_EMOJIS.map((e) => (
-                <button
-                  key={e}
-                  type="button"
-                  onClick={() => setIcon(e)}
-                  className={cn(
-                    "flex h-9 w-9 items-center justify-center rounded-lg border text-lg",
-                    icon === e ? "border-primary bg-primary/10" : ""
-                  )}
-                >
-                  {e}
-                </button>
-              ))}
-            </div>
           </div>
           <div>
             <Label>Accent color</Label>
@@ -255,14 +235,13 @@ function EditGroupDialog({ group }: { group: CourseGroup }) {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState(group.name);
   const [description, setDescription] = useState(group.description ?? "");
-  const [icon, setIcon] = useState(group.icon ?? GROUP_EMOJIS[0]);
   const [color, setColor] = useState(group.color ?? GROUP_COLORS[0]);
   const mut = useMutation({
     mutationFn: () =>
       fetch("/api/course-groups/" + group.id, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, description, icon, color }),
+        body: JSON.stringify({ name, description, color }),
       }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["admin-course-groups"] });
@@ -294,24 +273,6 @@ function EditGroupDialog({ group }: { group: CourseGroup }) {
           <div>
             <Label>Description</Label>
             <Textarea value={description} onChange={(e) => setDescription(e.target.value)} />
-          </div>
-          <div>
-            <Label>Icon</Label>
-            <div className="mt-1 flex flex-wrap gap-1.5">
-              {GROUP_EMOJIS.map((e) => (
-                <button
-                  key={e}
-                  type="button"
-                  onClick={() => setIcon(e)}
-                  className={cn(
-                    "flex h-9 w-9 items-center justify-center rounded-lg border text-lg",
-                    icon === e ? "border-primary bg-primary/10" : ""
-                  )}
-                >
-                  {e}
-                </button>
-              ))}
-            </div>
           </div>
           <div>
             <Label>Accent color</Label>
