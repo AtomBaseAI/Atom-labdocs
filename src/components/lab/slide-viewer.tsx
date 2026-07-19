@@ -27,7 +27,7 @@ type Slide =
   | { kind: "overview"; overview: string | null; flow: FlowNode[] | null }
   | { kind: "step"; step: Step; index: number; total: number }
   | { kind: "output"; output: string | null }
-  | { kind: "conclusion"; conclusion: string | null };
+  // | { kind: "conclusion"; conclusion: string | null };
 
 type Props = {
   module: Module & { steps?: Step[] };
@@ -55,7 +55,7 @@ export function SlideViewer({ module, courseTitle, labTitle, accent = "#0d9488" 
       { kind: "overview", overview: module.overview, flow },
       ...steps.map<Slide>((s, i) => ({ kind: "step", step: s, index: i, total: steps.length })),
       { kind: "output", output: module.output },
-      { kind: "conclusion", conclusion: module.conclusion },
+      // { kind: "conclusion", conclusion: module.conclusion },
     ];
     return list;
   }, [module]);
@@ -197,7 +197,7 @@ function slideLabel(s: Slide): string {
     case "overview": return "Overview & Flow";
     case "step": return `Step ${s.index + 1}`;
     case "output": return "Output";
-    case "conclusion": return "Conclusion";
+    // case "conclusion": return "Conclusion";
   }
 }
 
@@ -316,15 +316,15 @@ function SlideContent({
         </div>
       );
 
-    case "conclusion":
-      return (
-        <div className="space-y-4">
-          <SectionTag icon={Flag} label="Conclusion" accent={accent} />
-          <h2 className="text-2xl font-semibold" style={{ color: accent }}>Conclusion</h2>
-          <div className="rounded-xl border-l-4 p-5" style={{ borderColor: accent, background: accent + "0d" }}>
-            <RichTextRenderer html={slide.conclusion} />
-          </div>
-        </div>
-      );
+    // case "conclusion":
+    //   return (
+    //     <div className="space-y-4">
+    //       <SectionTag icon={Flag} label="Conclusion" accent={accent} />
+    //       <h2 className="text-2xl font-semibold" style={{ color: accent }}>Conclusion</h2>
+    //       <div className="rounded-xl border-l-4 p-5" style={{ borderColor: accent, background: accent + "0d" }}>
+    //         <RichTextRenderer html={slide.conclusion} />
+    //       </div>
+    //     </div>
+    //   );
   }
 }
