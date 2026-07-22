@@ -51,6 +51,10 @@ import {
 import { ModuleEditor } from "@/components/admin/module-editor";
 import { VisibilityToggle } from "@/components/admin/visibility-toggle";
 import { CourseGroupsSection } from "@/components/admin/course-groups-section";
+import {
+  ImportExportSection,
+  ExportCourseButton,
+} from "@/components/admin/import-export-section";
 import type { Course, CourseGroup, Lab, Module } from "@/lib/types";
 import { courseAccent, DEFAULT_ACCENT } from "@/lib/types";
 import type { LabLinkType } from "@/lib/types";
@@ -634,6 +638,9 @@ function OverviewPanel({
         </div>
       </Card>
 
+      {/* Import / Export content */}
+      <ImportExportSection />
+
       {/* Course groups */}
       <CourseGroupsSection />
 
@@ -684,6 +691,7 @@ function OverviewPanel({
                   </div>
                 </button>
                 <VisibilityToggle kind="course" id={c.id} hidden={c.hidden} />
+                <ExportCourseButton courseId={c.id} />
                 <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
               </div>
             ))}
@@ -750,6 +758,7 @@ function CoursePanel({
         <div className="flex shrink-0 flex-wrap items-center gap-2">
           <EditCourseDialog course={course} />
           <AddLabDialog courseId={course.id} />
+          <ExportCourseButton courseId={course.id} labeled />
         </div>
       </div>
 
