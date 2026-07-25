@@ -6,8 +6,9 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 model CourseGroup {
@@ -18,15 +19,16 @@ model CourseGroup {
   color       String? // accent color
   order       Int      @default(0)
   courses     Course[]
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
 
   @@index([order])
+  @@map("course_groups")
 }
 
 model Course {
   id          String   @id @default(cuid())
-  groupId     String?
+  groupId     String?  @map("group_id")
   group       CourseGroup? @relation(fields: [groupId], references: [id], onDelete: SetNull)
   title       String
   description String?
@@ -35,34 +37,36 @@ model Course {
   order       Int      @default(0)
   hidden      Boolean  @default(false) // hide from public view
   labs        Lab[]
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
 
   @@index([groupId])
   @@index([hidden, order])
+  @@map("courses")
 }
 
 model Lab {
   id          String   @id @default(cuid())
-  courseId    String
+  courseId    String   @map("course_id")
   course      Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
   title       String
   description String?
   order       Int      @default(0)
   hidden      Boolean  @default(false) // hide from public view
   // Link feature: "none" (default) | "download" | "watch"
-  linkType    String   @default("none")
-  linkUrl     String?
+  linkType    String   @default("none") @map("link_type")
+  linkUrl     String?  @map("link_url")
   modules     Module[]
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
 
   @@index([courseId, hidden, order])
+  @@map("labs")
 }
 
 model Module {
   id          String   @id @default(cuid())
-  labId       String
+  labId       String   @map("lab_id")
   lab         Lab      @relation(fields: [labId], references: [id], onDelete: Cascade)
   title       String
   // Part 1: Title & Explanation
@@ -73,34 +77,36 @@ model Module {
   // Part 3: Lab Procedure with Steps (stored as related Step rows)
   // Part 4: Output
   output            String? // rich text HTML
-  outputCode        String? // code snippet text (shown below output rich text)
-  outputCodeLang    String? // language for syntax highlighting
-  outputImage       String? // ImageKit CDN URL
-  outputImageFileId String? // ImageKit fileId for deletion
-  outputImageCaption String?
+  outputCode        String? @map("output_code") // code snippet text (shown below output rich text)
+  outputCodeLang    String? @map("output_code_lang") // language for syntax highlighting
+  outputImage       String? @map("output_image") // ImageKit CDN URL
+  outputImageFileId String? @map("output_image_file_id") // ImageKit fileId for deletion
+  outputImageCaption String? @map("output_image_caption")
   order             Int      @default(0)
   hidden      Boolean  @default(false) // hide from public view
   steps       Step[]
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
 
   @@index([labId, hidden, order])
+  @@map("modules")
 }
 
 model Step {
   id           String   @id @default(cuid())
-  moduleId     String
+  moduleId     String   @map("module_id")
   module       Module   @relation(fields: [moduleId], references: [id], onDelete: Cascade)
   title        String
   description  String? // rich text HTML
   code         String? // code snippet text
-  codeLang     String? // language for syntax highlighting
+  codeLang     String? @map("code_lang") // language for syntax highlighting
   image        String? // ImageKit CDN URL
-  imageFileId  String? // ImageKit fileId for deletion
-  imageCaption String?
+  imageFileId  String? @map("image_file_id") // ImageKit fileId for deletion
+  imageCaption String? @map("image_caption")
   order        Int      @default(0)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
 
   @@index([moduleId, order])
+  @@map("steps")
 }
