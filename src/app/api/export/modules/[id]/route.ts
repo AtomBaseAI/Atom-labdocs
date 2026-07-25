@@ -41,6 +41,7 @@ export async function GET(
     outputCode: mod.outputCode,
     outputCodeLang: mod.outputCodeLang,
     outputImage: mod.outputImage,
+    outputImageFileId: mod.outputImageFileId,
     outputImageCaption: mod.outputImageCaption,
     order: mod.order,
     hidden: mod.hidden,

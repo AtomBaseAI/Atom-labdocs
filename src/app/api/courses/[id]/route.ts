@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireAdmin } from "@/lib/auth";
+import { deleteFromImageKit } from "@/lib/imagekit";
 
 export async function GET(
   req: NextRequest,
@@ -64,6 +65,37 @@ export async function DELETE(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   const { id } = await params;
+
+  // Clean up all ImageKit files before cascading delete
+  const course = await db.course.findUnique({
+    where: { id },
+    include: {
+      labs: {
+        include: {
+          modules: {
+            include: {
+              steps: true,
+            },
+          },
+        },
+      },
+    },
+  });
+  if (course) {
+    for (const lab of course.labs) {
+      for (const mod of lab.modules) {
+        if (mod.outputImageFileId) {
+          try { await deleteFromImageKit(mod.outputImageFileId); } catch {}
+        }
+        for (const step of mod.steps) {
+          if (step.imageFileId) {
+            try { await deleteFromImageKit(step.imageFileId); } catch {}
+          }
+        }
+      }
+    }
+  }
+
   await db.course.delete({ where: { id } });
   return NextResponse.json({ ok: true });
 }

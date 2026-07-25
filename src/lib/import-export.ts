@@ -49,6 +49,7 @@ export type StepExport = {
   code: string | null;
   codeLang: string | null;
   image: string | null;
+  imageFileId: string | null;
   imageCaption: string | null;
   order: number;
 };
@@ -62,6 +63,7 @@ export type ModuleExport = {
   outputCode: string | null;
   outputCodeLang: string | null;
   outputImage: string | null;
+  outputImageFileId: string | null;
   outputImageCaption: string | null;
   order: number;
   hidden: boolean;
@@ -148,6 +150,7 @@ export function serializeStep(
     code: string | null;
     codeLang: string | null;
     image: string | null;
+    imageFileId: string | null;
     imageCaption: string | null;
     order: number;
   }
@@ -158,6 +161,7 @@ export function serializeStep(
     code: s.code,
     codeLang: s.codeLang,
     image: s.image,
+    imageFileId: s.imageFileId,
     imageCaption: s.imageCaption,
     order: s.order,
   };
@@ -173,6 +177,7 @@ export function serializeModule(
     outputCode: string | null;
     outputCodeLang: string | null;
     outputImage: string | null;
+    outputImageFileId: string | null;
     outputImageCaption: string | null;
     order: number;
     hidden: boolean;
@@ -188,6 +193,7 @@ export function serializeModule(
     outputCode: m.outputCode,
     outputCodeLang: m.outputCodeLang,
     outputImage: m.outputImage,
+    outputImageFileId: m.outputImageFileId,
     outputImageCaption: m.outputImageCaption,
     order: m.order,
     hidden: m.hidden,
@@ -272,6 +278,7 @@ export function parseStepExport(v: unknown, idx: number): StepExport | null {
     code: isStrOrNull(o.code) ? o.code : null,
     codeLang: isStrOrNull(o.codeLang) ? o.codeLang : null,
     image: isStrOrNull(o.image) ? o.image : null,
+    imageFileId: isStrOrNull(o.imageFileId) ? o.imageFileId : null,
     imageCaption: isStrOrNull(o.imageCaption) ? o.imageCaption : null,
     order: isNum(o.order) ? o.order : idx,
   };
@@ -296,6 +303,7 @@ export function parseModuleExport(v: unknown, idx: number): ModuleExport | null 
     outputCode: isStrOrNull(o.outputCode) ? o.outputCode : null,
     outputCodeLang: isStrOrNull(o.outputCodeLang) ? o.outputCodeLang : null,
     outputImage: isStrOrNull(o.outputImage) ? o.outputImage : null,
+    outputImageFileId: isStrOrNull(o.outputImageFileId) ? o.outputImageFileId : null,
     outputImageCaption: isStrOrNull(o.outputImageCaption) ? o.outputImageCaption : null,
     order: isNum(o.order) ? o.order : idx,
     hidden: isBool(o.hidden) ? o.hidden : false,

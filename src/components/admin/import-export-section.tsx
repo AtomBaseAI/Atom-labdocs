@@ -649,6 +649,20 @@ function ImportSelectDialog({ open, onOpenChange, queryClient: qc }: ImportSelec
   const [duplicateGroups, setDuplicateGroups] = useState(false);
   const [checked, setChecked] = useState<Set<string>>(new Set());
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [targetLabId, setTargetLabId] = useState<string | null>(null);
+  const [targetCourseId, setTargetCourseId] = useState<string | null>(null);
+
+  // Fetch available courses and labs for standalone import targets
+  const coursesQuery = useQuery<Course[]>({
+    queryKey: ["courses"],
+    queryFn: () => fetchJson<Course[]>("/api/courses"),
+    enabled: open && parsedFile?.type === "lab",
+  });
+  const labsQuery = useQuery<(Lab & { _count?: { modules: number } })[]>({
+    queryKey: ["admin-labs"],
+    queryFn: () => fetchJson<(Lab & { _count?: { modules: number } })[]>("/api/labs?admin=1"),
+    enabled: open && parsedFile?.type === "module",
+  });
 
   const allKeys = useMemo(() => {
     if (!parsedFile) return [];
@@ -780,12 +794,22 @@ function ImportSelectDialog({ open, onOpenChange, queryClient: qc }: ImportSelec
     mutationFn: async () => {
       const file = importMode === "all" ? parsedFile : getFilteredFile();
       if (!file) throw new Error("No file parsed");
+      const options: Record<string, unknown> = { duplicateGroups };
+      // Standalone module/lab imports require a target parent
+      if (file.type === "module") {
+        if (!targetLabId) throw new Error("Select a target lab for the module import.");
+        options.targetLabId = targetLabId;
+      }
+      if (file.type === "lab") {
+        if (!targetCourseId) throw new Error("Select a target course for the lab import.");
+        options.targetCourseId = targetCourseId;
+      }
       const res = await fetch("/api/import", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           file,
-          options: { duplicateGroups },
+          options,
         }),
       });
       const data = await res.json().catch(() => ({}));
@@ -829,6 +853,8 @@ function ImportSelectDialog({ open, onOpenChange, queryClient: qc }: ImportSelec
     setChecked(new Set());
     setExpanded(new Set());
     setImportMode("selective");
+    setTargetLabId(null);
+    setTargetCourseId(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
     onOpenChange(false);
   }
@@ -942,6 +968,40 @@ function ImportSelectDialog({ open, onOpenChange, queryClient: qc }: ImportSelec
             <ImportPreview file={parsedFile} fileName={fileName} />
           )}
 
+          {/* Target selector for standalone lab/module imports */}
+          {parsedFile && parsedFile.type === "module" && (
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium">Target lab</Label>
+              <p className="text-xs text-muted-foreground">Select which lab the imported module will be added to.</p>
+              <select
+                className="h-9 w-full rounded-md border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                value={targetLabId ?? ""}
+                onChange={(e) => setTargetLabId(e.target.value || null)}
+              >
+                <option value="">— Select a lab —</option>
+                {labsQuery.data?.map((l) => (
+                  <option key={l.id} value={l.id}>{l.title}</option>
+                ))}
+              </select>
+            </div>
+          )}
+          {parsedFile && parsedFile.type === "lab" && (
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium">Target course</Label>
+              <p className="text-xs text-muted-foreground">Select which course the imported lab will be added to.</p>
+              <select
+                className="h-9 w-full rounded-md border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                value={targetCourseId ?? ""}
+                onChange={(e) => setTargetCourseId(e.target.value || null)}
+              >
+                <option value="">— Select a course —</option>
+                {coursesQuery.data?.map((c) => (
+                  <option key={c.id} value={c.id}>{c.title}</option>
+                ))}
+              </select>
+            </div>
+          )}
+
           {parsedFile && (
             <div className="flex items-start gap-2 rounded-md border bg-muted/30 p-3">
               <Switch
@@ -977,7 +1037,7 @@ function ImportSelectDialog({ open, onOpenChange, queryClient: qc }: ImportSelec
             Cancel
           </Button>
           <Button
-            disabled={(!parsedFile || (importMode === "selective" && selectedCount === 0)) || importMut.isPending}
+            disabled={(!parsedFile || (importMode === "selective" && selectedCount === 0) || (parsedFile?.type === "module" && !targetLabId) || (parsedFile?.type === "lab" && !targetCourseId)) || importMut.isPending}
             onClick={() => importMut.mutate()}
           >
             {importMut.isPending ? (
@@ -1075,17 +1135,59 @@ function ImportTreeView({
   }
 
   // Single course export
-  return (
-    <ImportCourseNode
-      nodeKey="course/0"
-      course={file.course}
-      depth={depth}
-      isChecked={checked.has("course/0")}
-      isExpanded={expanded.has("course/0")}
-      onToggle={onToggle}
-      onExpand={onExpand}
-    />
-  );
+  if (file.type === "course") {
+    return (
+      <ImportCourseNode
+        nodeKey="course/0"
+        course={file.course}
+        depth={depth}
+        isChecked={checked.has("course/0")}
+        isExpanded={expanded.has("course/0")}
+        onToggle={onToggle}
+        onExpand={onExpand}
+      />
+    );
+  }
+
+  // Standalone lab export
+  if (file.type === "lab") {
+    return (
+      <>
+        {file.lab.modules.map((m, mi) => (
+          <ImportModuleNode
+            key={`lab/0/module/${mi}`}
+            nodeKey={`lab/0/module/${mi}`}
+            module={m}
+            depth={depth}
+            isChecked={checked.has(`lab/0/module/${mi}`)}
+            isExpanded={expanded.has(`lab/0/module/${mi}`)}
+            onToggle={onToggle}
+            onExpand={onExpand}
+          />
+        ))}
+      </>
+    );
+  }
+
+  // Standalone module export
+  if (file.type === "module") {
+    return (
+      <>
+        {file.module.steps.map((s, si) => (
+          <ImportStepNode
+            key={`module/0/step/${si}`}
+            nodeKey={`module/0/step/${si}`}
+            step={s}
+            depth={depth}
+            isChecked={checked.has(`module/0/step/${si}`)}
+            onToggle={onToggle}
+          />
+        ))}
+      </>
+    );
+  }
+
+  return null;
 }
 
 function ImportGroupNode({
@@ -1211,6 +1313,71 @@ function ImportLabNode({
       <Badge variant="outline" className="ml-auto shrink-0 px-1.5 py-0 text-[10px]">
         {lab.modules.length} modules
       </Badge>
+    </div>
+  );
+}
+
+function ImportModuleNode({
+  nodeKey,
+  module,
+  depth,
+  isChecked,
+  isExpanded,
+  onToggle,
+  onExpand,
+}: {
+  nodeKey: string;
+  module: ModuleExport;
+  depth: number;
+  isChecked: boolean;
+  isExpanded: boolean;
+  onToggle: (key: string) => void;
+  onExpand: (key: string) => void;
+}) {
+  return (
+    <Collapsible open={isExpanded} onOpenChange={() => onExpand(nodeKey)}>
+      <div
+        className={cn("flex items-center gap-1.5 rounded-md px-2 py-1.5 text-sm hover:bg-muted/50", module.hidden && "opacity-50")}
+        style={{ paddingLeft: `${depth * 16 + 8}px` }}
+      >
+        <button
+          onClick={() => onExpand(nodeKey)}
+          className="flex h-5 w-5 shrink-0 items-center justify-center rounded-sm hover:bg-muted"
+        >
+          {isExpanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+        </button>
+        <Checkbox checked={isChecked} onCheckedChange={() => onToggle(nodeKey)} className="shrink-0" />
+        <FileText className="h-3.5 w-3.5 shrink-0" />
+        <span className="min-w-0 truncate text-muted-foreground">{module.title}</span>
+        <Badge variant="outline" className="ml-auto shrink-0 px-1.5 py-0 text-[10px]">
+          {module.steps.length} steps
+        </Badge>
+      </div>
+    </Collapsible>
+  );
+}
+
+function ImportStepNode({
+  nodeKey,
+  step,
+  depth,
+  isChecked,
+  onToggle,
+}: {
+  nodeKey: string;
+  step: { title: string; order: number };
+  depth: number;
+  isChecked: boolean;
+  onToggle: (key: string) => void;
+}) {
+  return (
+    <div
+      className="flex items-center gap-1.5 rounded-md px-2 py-1.5 text-sm hover:bg-muted/50"
+      style={{ paddingLeft: `${depth * 16 + 8 + 20}px` }}
+    >
+      <Checkbox checked={isChecked} onCheckedChange={() => onToggle(nodeKey)} className="shrink-0" />
+      <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-medium">{step.order + 1}</span>
+      <span className="min-w-0 truncate text-muted-foreground">{step.title}</span>
     </div>
   );
 }
@@ -1526,6 +1693,7 @@ function parseExportFileClient(raw: unknown): ExportFile {
       code: isStrOrNull(s.code) ? s.code : null,
       codeLang: isStrOrNull(s.codeLang) ? s.codeLang : null,
       image: isStrOrNull(s.image) ? s.image : null,
+      imageFileId: isStrOrNull(s.imageFileId) ? s.imageFileId : null,
       imageCaption: isStrOrNull(s.imageCaption) ? s.imageCaption : null,
       order: isNum(s.order) ? s.order : idx,
     };
@@ -1547,6 +1715,7 @@ function parseExportFileClient(raw: unknown): ExportFile {
       outputCode: isStrOrNull(m.outputCode) ? m.outputCode : null,
       outputCodeLang: isStrOrNull(m.outputCodeLang) ? m.outputCodeLang : null,
       outputImage: isStrOrNull(m.outputImage) ? m.outputImage : null,
+      outputImageFileId: isStrOrNull(m.outputImageFileId) ? m.outputImageFileId : null,
       outputImageCaption: isStrOrNull(m.outputImageCaption) ? m.outputImageCaption : null,
       order: isNum(m.order) ? m.order : idx,
       hidden: isBool(m.hidden) ? m.hidden : false,
@@ -1640,7 +1809,7 @@ function parseExportFileClient(raw: unknown): ExportFile {
       .map((x, i) => parseCourse(x, i))
       .filter((x): x is NonNullable<typeof x> => x !== null);
     return {
-      version: 1 as const,
+      version: 2 as const,
       source: "atom-labdocs" as const,
       exportedAt: o.exportedAt,
       type: "full" as const,
@@ -1653,7 +1822,7 @@ function parseExportFileClient(raw: unknown): ExportFile {
     if (!course) throw new Error("Export file is missing a valid course object.");
     const group = o.group === null || o.group === undefined ? null : parseGroup(o.group, 0);
     return {
-      version: 1 as const,
+      version: 2 as const,
       source: "atom-labdocs" as const,
       exportedAt: o.exportedAt,
       type: "course" as const,

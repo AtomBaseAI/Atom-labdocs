@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -78,6 +78,7 @@ export function ModuleEditor({ moduleId }: Props) {
   const [outputCode, setOutputCode] = useState("");
   const [outputCodeLang, setOutputCodeLang] = useState("text");
   const [outputImage, setOutputImage] = useState<string | null>(null);
+  const [outputImageFileId, setOutputImageFileId] = useState<string | null>(null);
   const [outputImageCaption, setOutputImageCaption] = useState("");
   const [showOutputPreview, setShowOutputPreview] = useState(false);
   const [steps, setSteps] = useState<Step[]>([]);
@@ -103,6 +104,7 @@ export function ModuleEditor({ moduleId }: Props) {
     setOutputCode(query.data.outputCode ?? "");
     setOutputCodeLang(query.data.outputCodeLang ?? "text");
     setOutputImage(query.data.outputImage ?? null);
+    setOutputImageFileId(query.data.outputImageFileId ?? null);
     setOutputImageCaption(query.data.outputImageCaption ?? "");
     setSteps(query.data.steps);
     setInitialized(true);
@@ -126,6 +128,7 @@ export function ModuleEditor({ moduleId }: Props) {
           outputCode: outputCode || null,
           outputCodeLang: outputCodeLang || null,
           outputImage,
+          outputImageFileId,
           outputImageCaption: outputImageCaption || null,
         }),
       });
@@ -138,7 +141,7 @@ export function ModuleEditor({ moduleId }: Props) {
     return () => {
       if (saveTimer.current) clearTimeout(saveTimer.current);
     };
-  }, [title, explanation, overview, flow, output, outputCode, outputCodeLang, outputImage, outputImageCaption, moduleId, qc, initialized]);
+  }, [title, explanation, overview, flow, output, outputCode, outputCodeLang, outputImage, outputImageFileId, outputImageCaption, moduleId, qc, initialized]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
@@ -184,6 +187,7 @@ export function ModuleEditor({ moduleId }: Props) {
           code: step.code,
           codeLang: step.codeLang,
           image: step.image,
+          imageFileId: step.imageFileId,
           imageCaption: step.imageCaption,
           order: step.order,
         }),
@@ -214,18 +218,54 @@ export function ModuleEditor({ moduleId }: Props) {
       body: JSON.stringify({ title: "New step", moduleId }),
     });
     const created: Step = await res.json();
-    setSteps((prev) => [...prev, { ...created, order }]);
+    setSteps((prev) => [...prev, created]);
     setTab("procedure");
   };
 
-  const handleOutputImage = (file?: File) => {
+  // Upload output image to ImageKit
+  const [outputUploading, setOutputUploading] = useState(false);
+
+  const handleOutputImage = useCallback(async (file?: File) => {
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      setOutputImage(reader.result as string);
-    };
-    reader.readAsDataURL(file);
-  };
+    setOutputUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("folder", "/labdocs/modules");
+
+      const res = await fetch("/api/upload", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        console.error("Upload failed:", err);
+        return;
+      }
+
+      const data = await res.json();
+      setOutputImage(data.url);
+      setOutputImageFileId(data.fileId);
+    } catch (err) {
+      console.error("Upload error:", err);
+    } finally {
+      setOutputUploading(false);
+    }
+  }, []);
+
+  const handleRemoveOutputImage = useCallback(() => {
+    // Delete from ImageKit first
+    if (outputImageFileId) {
+      fetch("/api/upload", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fileId: outputImageFileId }),
+      }).catch((err) => console.error("Delete error:", err));
+    }
+    setOutputImage(null);
+    setOutputImageFileId(null);
+  }, [outputImageFileId]);
 
   if (query.isLoading) return <Skeleton className="h-[600px] w-full rounded-2xl" />;
   if (!query.data) return null;
@@ -414,7 +454,12 @@ export function ModuleEditor({ moduleId }: Props) {
                 <Label className="mb-1.5 block text-xs font-medium text-muted-foreground">
                   Output illustration image
                 </Label>
-                {outputImage ? (
+                {outputUploading ? (
+                  <div className="flex flex-col items-center justify-center gap-2 rounded-lg border border-dashed py-6">
+                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                    <span className="text-sm text-muted-foreground">Uploading to ImageKit...</span>
+                  </div>
+                ) : outputImage ? (
                   <div className="relative overflow-hidden rounded-lg border">
                     <img src={outputImage} alt={outputImageCaption ?? ""} className="max-h-64 w-full object-contain bg-muted/30" />
                     <Button
@@ -422,7 +467,7 @@ export function ModuleEditor({ moduleId }: Props) {
                       variant="secondary"
                       size="icon"
                       className="absolute right-2 top-2 h-7 w-7"
-                      onClick={() => setOutputImage(null)}
+                      onClick={handleRemoveOutputImage}
                     >
                       <X className="h-4 w-4" />
                     </Button>
@@ -439,7 +484,7 @@ export function ModuleEditor({ moduleId }: Props) {
                     />
                   </label>
                 )}
-                {outputImage && (
+                {outputImage && !outputUploading && (
                   <Input
                     value={outputImageCaption}
                     onChange={(e) => setOutputImageCaption(e.target.value)}

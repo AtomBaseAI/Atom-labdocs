@@ -67,6 +67,7 @@ export type Module = {
   outputCode: string | null;
   outputCodeLang: string | null;
   outputImage: string | null;
+  outputImageFileId: string | null;
   outputImageCaption: string | null;
   order: number;
   hidden: boolean;
@@ -84,6 +85,7 @@ export type Step = {
   code: string | null;
   codeLang: string | null;
   image: string | null;
+  imageFileId: string | null;
   imageCaption: string | null;
   order: number;
   createdAt: string;

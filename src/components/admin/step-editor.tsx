@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,7 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { GripVertical, Trash2, ImagePlus, X, Terminal, Eye, Pencil } from "lucide-react";
+import { GripVertical, Trash2, ImagePlus, X, Terminal, Eye, Pencil, Loader2 } from "lucide-react";
 import type { Step } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -29,15 +29,50 @@ const LANGUAGES = ["text", "cpp", "c", "javascript", "typescript", "python", "ja
 
 export function StepEditor({ step, onChange, onDelete, dragging }: Props) {
   const [showPreview, setShowPreview] = useState(false);
+  const [uploading, setUploading] = useState(false);
 
-  const handleImage = (file?: File) => {
+  const handleImage = useCallback(async (file?: File) => {
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      onChange({ image: reader.result as string });
-    };
-    reader.readAsDataURL(file);
-  };
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("folder", "/labdocs/steps");
+
+      const res = await fetch("/api/upload", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        console.error("Upload failed:", err);
+        return;
+      }
+
+      const data = await res.json();
+      onChange({
+        image: data.url,
+        imageFileId: data.fileId,
+      });
+    } catch (err) {
+      console.error("Upload error:", err);
+    } finally {
+      setUploading(false);
+    }
+  }, [onChange]);
+
+  const handleRemoveImage = useCallback(() => {
+    // Delete from ImageKit first
+    if (step.imageFileId) {
+      fetch("/api/upload", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fileId: step.imageFileId }),
+      }).catch((err) => console.error("Delete error:", err));
+    }
+    onChange({ image: null, imageFileId: null });
+  }, [step.imageFileId, onChange]);
 
   return (
     <div
@@ -126,7 +161,12 @@ export function StepEditor({ step, onChange, onDelete, dragging }: Props) {
           <Label className="mb-1.5 block text-xs font-medium text-muted-foreground">
             Illustration image
           </Label>
-          {step.image ? (
+          {uploading ? (
+            <div className="flex flex-col items-center justify-center gap-2 rounded-lg border border-dashed py-6">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              <span className="text-sm text-muted-foreground">Uploading to ImageKit...</span>
+            </div>
+          ) : step.image ? (
             <div className="relative overflow-hidden rounded-lg border">
               <img src={step.image} alt={step.imageCaption ?? ""} className="max-h-64 w-full object-contain bg-muted/30" />
               <Button
@@ -134,7 +174,7 @@ export function StepEditor({ step, onChange, onDelete, dragging }: Props) {
                 variant="secondary"
                 size="icon"
                 className="absolute right-2 top-2 h-7 w-7"
-                onClick={() => onChange({ image: null })}
+                onClick={handleRemoveImage}
               >
                 <X className="h-4 w-4" />
               </Button>
@@ -151,7 +191,7 @@ export function StepEditor({ step, onChange, onDelete, dragging }: Props) {
               />
             </label>
           )}
-          {step.image && (
+          {step.image && !uploading && (
             <Input
               value={step.imageCaption ?? ""}
               onChange={(e) => onChange({ imageCaption: e.target.value })}

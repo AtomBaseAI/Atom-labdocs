@@ -6,12 +6,8 @@ generator client {
 }
 
 datasource db {
-  provider  = "postgresql"
-  url       = env("DATABASE_URL")
-  // Neon's pooled endpoint is used for the app at runtime. DDL operations
-  // (prisma db push / migrations) need a direct (non-pooled) connection,
-  // so directUrl points at the non-pooler host.
-  directUrl = env("DIRECT_URL")
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
 }
 
 model CourseGroup {
@@ -22,8 +18,8 @@ model CourseGroup {
   color       String? // accent color
   order       Int      @default(0)
   courses     Course[]
-  createdAt   DateTime @default(now()) @db.Timestamptz(6)
-  updatedAt   DateTime @updatedAt @db.Timestamptz(6)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   @@index([order])
 }
@@ -39,12 +35,9 @@ model Course {
   order       Int      @default(0)
   hidden      Boolean  @default(false) // hide from public view
   labs        Lab[]
-  createdAt   DateTime @default(now()) @db.Timestamptz(6)
-  updatedAt   DateTime @updatedAt @db.Timestamptz(6)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  // Postgres does NOT auto-index foreign-key columns, so we add them explicitly.
-  // These indexes cover the common public/admin list queries (filter by group,
-  // filter hidden, order by position).
   @@index([groupId])
   @@index([hidden, order])
 }
@@ -61,10 +54,9 @@ model Lab {
   linkType    String   @default("none")
   linkUrl     String?
   modules     Module[]
-  createdAt   DateTime @default(now()) @db.Timestamptz(6)
-  updatedAt   DateTime @updatedAt @db.Timestamptz(6)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  // Covers: db.lab.findMany({ where: { courseId, hidden }, orderBy: { order } })
   @@index([courseId, hidden, order])
 }
 
@@ -83,15 +75,15 @@ model Module {
   output            String? // rich text HTML
   outputCode        String? // code snippet text (shown below output rich text)
   outputCodeLang    String? // language for syntax highlighting
-  outputImage       String? // image (base64 data url)
+  outputImage       String? // ImageKit CDN URL
+  outputImageFileId String? // ImageKit fileId for deletion
   outputImageCaption String?
   order             Int      @default(0)
   hidden      Boolean  @default(false) // hide from public view
   steps       Step[]
-  createdAt   DateTime @default(now()) @db.Timestamptz(6)
-  updatedAt   DateTime @updatedAt @db.Timestamptz(6)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  // Covers: db.module.findMany({ where: { labId, hidden }, orderBy: { order } })
   @@index([labId, hidden, order])
 }
 
@@ -103,12 +95,12 @@ model Step {
   description  String? // rich text HTML
   code         String? // code snippet text
   codeLang     String? // language for syntax highlighting
-  image        String? // image (base64 data url)
+  image        String? // ImageKit CDN URL
+  imageFileId  String? // ImageKit fileId for deletion
   imageCaption String?
   order        Int      @default(0)
-  createdAt    DateTime @default(now()) @db.Timestamptz(6)
-  updatedAt    DateTime @updatedAt @db.Timestamptz(6)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
-  // Covers: db.step.findMany({ where: { moduleId }, orderBy: { order } })
   @@index([moduleId, order])
 }

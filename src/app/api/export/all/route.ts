@@ -79,6 +79,7 @@ export async function GET() {
                 outputCode: m.outputCode,
                 outputCodeLang: m.outputCodeLang,
                 outputImage: m.outputImage,
+                outputImageFileId: m.outputImageFileId,
                 outputImageCaption: m.outputImageCaption,
                 order: m.order,
                 hidden: m.hidden,
