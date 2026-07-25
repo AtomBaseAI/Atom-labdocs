@@ -43,7 +43,7 @@ import {
   FileArchive,
   TreePine,
 } from "lucide-react";
-import type { ExportFile, CourseExport, LabExport } from "@/lib/import-export";
+import type { ExportFile, CourseExport, LabExport, ModuleExport } from "@/lib/import-export";
 import type { CourseGroup, Course, Lab, Module } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -1291,6 +1291,114 @@ export function ExportCourseButton({
   );
 }
 
+// ===================== Inline per-module standalone Export button =====================
+
+export function ExportModuleButton({
+  moduleId,
+}: {
+  moduleId: string;
+}) {
+  const mut = useMutation({
+    mutationFn: async () => {
+      const res = await fetch(`/api/export/modules/${moduleId}`);
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || `Export failed (HTTP ${res.status})`);
+      }
+      return res;
+    },
+    onSuccess: async (res) => {
+      const blob = await res.blob();
+      const cd = res.headers.get("Content-Disposition") || "";
+      const m = cd.match(/filename="?([^"]+)"?/i);
+      const filename = m?.[1] || `module-${moduleId}.json`;
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      toast({ title: "Module exported", description: `Downloaded ${filename}` });
+    },
+    onError: (e: Error) => {
+      toast({ title: "Export failed", description: e.message, variant: "destructive" });
+    },
+  });
+
+  return (
+    <Button
+      variant="ghost"
+      size="icon"
+      className="h-7 w-7"
+      title="Export this module as standalone JSON (no parent references)"
+      onClick={() => mut.mutate()}
+      disabled={mut.isPending}
+    >
+      {mut.isPending ? (
+        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+      ) : (
+        <FileDown className="h-3.5 w-3.5" />
+      )}
+    </Button>
+  );
+}
+
+// ===================== Inline per-lab standalone Export button =====================
+
+export function ExportLabButton({
+  labId,
+}: {
+  labId: string;
+}) {
+  const mut = useMutation({
+    mutationFn: async () => {
+      const res = await fetch(`/api/export/labs/${labId}`);
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || `Export failed (HTTP ${res.status})`);
+      }
+      return res;
+    },
+    onSuccess: async (res) => {
+      const blob = await res.blob();
+      const cd = res.headers.get("Content-Disposition") || "";
+      const m = cd.match(/filename="?([^"]+)"?/i);
+      const filename = m?.[1] || `lab-${labId}.json`;
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      toast({ title: "Lab exported", description: `Downloaded ${filename}` });
+    },
+    onError: (e: Error) => {
+      toast({ title: "Export failed", description: e.message, variant: "destructive" });
+    },
+  });
+
+  return (
+    <Button
+      variant="ghost"
+      size="icon"
+      className="h-7 w-7"
+      title="Export this lab as standalone JSON (no parent references)"
+      onClick={() => mut.mutate()}
+      disabled={mut.isPending}
+    >
+      {mut.isPending ? (
+        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+      ) : (
+        <FileDown className="h-3.5 w-3.5" />
+      )}
+    </Button>
+  );
+}
+
 // ===================== Import preview card =====================
 
 function ImportPreview({
@@ -1321,6 +1429,22 @@ function ImportPreview({
           ),
           groups: file.courseGroups.length,
         }
+      : file.type === "lab"
+      ? {
+          courses: 0,
+          labs: 1,
+          modules: file.lab.modules.length,
+          steps: file.lab.modules.reduce((a, m) => a + m.steps.length, 0),
+          groups: 0,
+        }
+      : file.type === "module"
+      ? {
+          courses: 0,
+          labs: 0,
+          modules: 1,
+          steps: file.module.steps.length,
+          groups: 0,
+        }
       : {
           courses: 1,
           labs: file.course.labs.length,
@@ -1345,7 +1469,7 @@ function ImportPreview({
         </span>
       </div>
       <div className="grid grid-cols-2 gap-2 text-xs sm:grid-cols-3">
-        <PreviewStat label="Type" value={file.type === "full" ? "Full dump" : "Single course"} />
+        <PreviewStat label="Type" value={file.type === "full" ? "Full dump" : file.type === "lab" ? "Standalone lab" : file.type === "module" ? "Standalone module" : "Single course"} />
         {file.type === "full" && <PreviewStat label="Groups" value={counts.groups} />}
         <PreviewStat label="Courses" value={counts.courses} />
         <PreviewStat label="Labs" value={counts.labs} />
@@ -1377,8 +1501,8 @@ function parseExportFileClient(raw: unknown): ExportFile {
     throw new Error("Export file must be a JSON object.");
   }
   const o = raw as Record<string, unknown>;
-  if (o.version !== 1) {
-    throw new Error(`Unsupported export version. Expected 1, got ${String(o.version)}.`);
+  if (o.version !== 1 && o.version !== 2) {
+    throw new Error(`Unsupported export version. Expected 1 or 2, got ${String(o.version)}.`);
   }
   if (o.source !== "atom-labdocs") {
     throw new Error(`Unrecognized export source "${String(o.source)}". Expected "atom-labdocs".`);
@@ -1420,7 +1544,10 @@ function parseExportFileClient(raw: unknown): ExportFile {
       overview: isStrOrNull(m.overview) ? m.overview : null,
       flow: isStrOrNull(m.flow) ? m.flow : null,
       output: isStrOrNull(m.output) ? m.output : null,
-      conclusion: isStrOrNull(m.conclusion) ? m.conclusion : null,
+      outputCode: isStrOrNull(m.outputCode) ? m.outputCode : null,
+      outputCodeLang: isStrOrNull(m.outputCodeLang) ? m.outputCodeLang : null,
+      outputImage: isStrOrNull(m.outputImage) ? m.outputImage : null,
+      outputImageCaption: isStrOrNull(m.outputImageCaption) ? m.outputImageCaption : null,
       order: isNum(m.order) ? m.order : idx,
       hidden: isBool(m.hidden) ? m.hidden : false,
       steps,
@@ -1481,6 +1608,28 @@ function parseExportFileClient(raw: unknown): ExportFile {
     };
   }
 
+  if (o.type === "module") {
+    const modExport = parseModule(o.module, 0);
+    if (!modExport) throw new Error("Export file is missing a valid module object.");
+    return {
+      version: 2 as const,
+      source: "atom-labdocs" as const,
+      exportedAt: o.exportedAt,
+      type: "module" as const,
+      module: modExport,
+    };
+  }
+  if (o.type === "lab") {
+    const lab = parseLab(o.lab, 0);
+    if (!lab) throw new Error("Export file is missing a valid lab object.");
+    return {
+      version: 2 as const,
+      source: "atom-labdocs" as const,
+      exportedAt: o.exportedAt,
+      type: "lab" as const,
+      lab,
+    };
+  }
   if (o.type === "full") {
     const groupsRaw = isArr(o.courseGroups) ? o.courseGroups : [];
     const courseGroups = groupsRaw
@@ -1531,6 +1680,13 @@ function walkImportKeys(file: ExportFile, keys: string[]) {
         }
       }
     }
+  } else if (file.type === "lab") {
+    keys.push("lab/0");
+    for (let mi = 0; mi < file.lab.modules.length; mi++) {
+      keys.push(`lab/0/module/${mi}`);
+    }
+  } else if (file.type === "module") {
+    keys.push("module/0");
   } else {
     keys.push(`course/0`);
     for (let li = 0; li < file.course.labs.length; li++) {

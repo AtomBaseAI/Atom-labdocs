@@ -145,7 +145,10 @@ export async function POST(req: NextRequest) {
             overview: mod.overview,
             flow: mod.flow,
             output: mod.output,
-            conclusion: mod.conclusion,
+            outputCode: mod.outputCode,
+            outputCodeLang: mod.outputCodeLang,
+            outputImage: mod.outputImage,
+            outputImageCaption: mod.outputImageCaption,
             order: mod.order,
             hidden: mod.hidden,
           },
@@ -239,7 +242,115 @@ export async function POST(req: NextRequest) {
         }
         await insertCourse(c, groupId);
       }
-    } else {
+    }
+    if (file.type === "module") {
+      // Standalone module import — caller must provide targetLabId via options
+      const options2 = o.options && typeof o.options === "object" ? (o.options as { targetLabId?: unknown }) : {};
+      const targetLabId = typeof options2.targetLabId === "string" ? options2.targetLabId : null;
+      if (!targetLabId) {
+        return NextResponse.json({ error: "Standalone module import requires a targetLabId in options." }, { status: 400 });
+      }
+      // Verify target lab exists
+      const targetLab = await db.lab.findUnique({ where: { id: targetLabId } });
+      if (!targetLab) {
+        return NextResponse.json({ error: "Target lab not found." }, { status: 404 });
+      }
+      const mod = file.module;
+      const maxOrder = await db.module.aggregate({ where: { labId: targetLabId }, _max: { order: true } });
+      const modRow = await db.module.create({
+        data: {
+          title: mod.title,
+          labId: targetLabId,
+          explanation: mod.explanation,
+          overview: mod.overview,
+          flow: mod.flow,
+          output: mod.output,
+          outputCode: mod.outputCode,
+          outputCodeLang: mod.outputCodeLang,
+          outputImage: mod.outputImage,
+          outputImageCaption: mod.outputImageCaption,
+          order: (maxOrder._max.order ?? -1) + 1,
+          hidden: mod.hidden,
+        },
+      });
+      created.modules += 1;
+      for (const step of mod.steps) {
+        await db.step.create({
+          data: {
+            title: step.title,
+            moduleId: modRow.id,
+            description: step.description,
+            code: step.code,
+            codeLang: step.codeLang,
+            image: step.image,
+            imageCaption: step.imageCaption,
+            order: step.order,
+          },
+        });
+        created.steps += 1;
+      }
+    }
+    if (file.type === "lab") {
+      // Standalone lab import — caller must provide targetCourseId via options
+      const options2 = o.options && typeof o.options === "object" ? (o.options as { targetCourseId?: unknown }) : {};
+      const targetCourseId = typeof options2.targetCourseId === "string" ? options2.targetCourseId : null;
+      if (!targetCourseId) {
+        return NextResponse.json({ error: "Standalone lab import requires a targetCourseId in options." }, { status: 400 });
+      }
+      const targetCourse = await db.course.findUnique({ where: { id: targetCourseId } });
+      if (!targetCourse) {
+        return NextResponse.json({ error: "Target course not found." }, { status: 404 });
+      }
+      const lab = file.lab;
+      const maxOrder = await db.lab.aggregate({ where: { courseId: targetCourseId }, _max: { order: true } });
+      const labRow = await db.lab.create({
+        data: {
+          title: lab.title,
+          description: lab.description,
+          courseId: targetCourseId,
+          order: (maxOrder._max.order ?? -1) + 1,
+          hidden: lab.hidden,
+          linkType: lab.linkType,
+          linkUrl: lab.linkUrl,
+        },
+      });
+      created.labs += 1;
+      for (const mod of lab.modules) {
+        const modRow = await db.module.create({
+          data: {
+            title: mod.title,
+            labId: labRow.id,
+            explanation: mod.explanation,
+            overview: mod.overview,
+            flow: mod.flow,
+            output: mod.output,
+            outputCode: mod.outputCode,
+            outputCodeLang: mod.outputCodeLang,
+            outputImage: mod.outputImage,
+            outputImageCaption: mod.outputImageCaption,
+            order: mod.order,
+            hidden: mod.hidden,
+          },
+        });
+        created.modules += 1;
+        for (const step of mod.steps) {
+          await db.step.create({
+            data: {
+              title: step.title,
+              moduleId: modRow.id,
+              description: step.description,
+              code: step.code,
+              codeLang: step.codeLang,
+              image: step.image,
+              imageCaption: step.imageCaption,
+              order: step.order,
+            },
+          });
+          created.steps += 1;
+        }
+      }
+    }
+    if (file.type === "course") {
       // Single-course import. Recreate the parent group (if any) and the
       // course itself.
       const groupId = await resolveGroup(file.group, file.course.groupName);

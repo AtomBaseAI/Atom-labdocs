@@ -64,7 +64,10 @@ export type Module = {
   overview: string | null;
   flow: string | null; // JSON string of FlowNode[]
   output: string | null;
-  conclusion: string | null;
+  outputCode: string | null;
+  outputCodeLang: string | null;
+  outputImage: string | null;
+  outputImageCaption: string | null;
   order: number;
   hidden: boolean;
   createdAt: string;

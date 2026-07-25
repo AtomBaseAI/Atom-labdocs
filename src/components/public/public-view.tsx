@@ -505,7 +505,7 @@ function ModuleCard({
   onClick: () => void;
 }) {
   const stepCount = module._count?.steps ?? 0;
-  const slideCount = stepCount + 4; // title, overview, steps, output, conclusion
+  const slideCount = stepCount + 3; // title, overview, steps, output
   return (
     <Card
       className={cn(

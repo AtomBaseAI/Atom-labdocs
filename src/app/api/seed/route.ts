@@ -53,8 +53,10 @@ export async function POST() {
       flow,
       output:
         "<h2>Expected Output</h2><p>After running the program you should see pushed values printed in reverse order of insertion (LIFO), and a final empty-stack check returning <code>true</code>.</p><pre><code>Pushed: 10\nPushed: 20\nPushed: 30\nPopped: 30\nPopped: 20\nStack empty? true</code></pre>",
-      conclusion:
-        "<h2>Conclusion</h2><p>You implemented a stack using a linked list with O(1) push/pop. The linked-list approach trades a bit of memory (per-node pointers) for flexibility — no resizing, no shifting. In the next module we will extend this to a queue.</p>",
+      outputCode: null,
+      outputCodeLang: null,
+      outputImage: null,
+      outputImageCaption: null,
     },
   });
 

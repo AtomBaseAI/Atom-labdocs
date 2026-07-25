@@ -9,7 +9,15 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { RichTextEditor } from "@/components/lab/rich-text-editor";
 import { FlowEditor } from "@/components/lab/flow-editor";
 import { StepEditor } from "@/components/admin/step-editor";
+import { CodeBlock } from "@/components/lab/code-block";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   DndContext,
   PointerSensor,
@@ -32,12 +40,15 @@ import {
   Workflow,
   ListOrdered,
   Terminal,
-  Flag,
   Plus,
   Save,
   Check,
   Loader2,
   GripVertical,
+  Eye,
+  Pencil,
+  ImagePlus,
+  X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -48,6 +59,8 @@ async function fetchJson<T>(url: string): Promise<T> {
   if (!res.ok) throw new Error("Failed to load");
   return res.json();
 }
+
+const OUTPUT_LANGUAGES = ["text", "cpp", "c", "javascript", "typescript", "python", "java", "bash", "sql", "json", "html", "css", "go", "rust"];
 
 export function ModuleEditor({ moduleId }: Props) {
   const qc = useQueryClient();
@@ -62,7 +75,11 @@ export function ModuleEditor({ moduleId }: Props) {
   const [overview, setOverview] = useState("");
   const [flow, setFlow] = useState<FlowNode[]>([]);
   const [output, setOutput] = useState("");
-  const [conclusion, setConclusion] = useState("");
+  const [outputCode, setOutputCode] = useState("");
+  const [outputCodeLang, setOutputCodeLang] = useState("text");
+  const [outputImage, setOutputImage] = useState<string | null>(null);
+  const [outputImageCaption, setOutputImageCaption] = useState("");
+  const [showOutputPreview, setShowOutputPreview] = useState(false);
   const [steps, setSteps] = useState<Step[]>([]);
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved">("idle");
   const [tab, setTab] = useState("explanation");
@@ -83,7 +100,10 @@ export function ModuleEditor({ moduleId }: Props) {
       setFlow([]);
     }
     setOutput(query.data.output ?? "");
-    setConclusion(query.data.conclusion ?? "");
+    setOutputCode(query.data.outputCode ?? "");
+    setOutputCodeLang(query.data.outputCodeLang ?? "text");
+    setOutputImage(query.data.outputImage ?? null);
+    setOutputImageCaption(query.data.outputImageCaption ?? "");
     setSteps(query.data.steps);
     setInitialized(true);
   }
@@ -103,7 +123,10 @@ export function ModuleEditor({ moduleId }: Props) {
           overview,
           flow: JSON.stringify(flow),
           output,
-          conclusion,
+          outputCode: outputCode || null,
+          outputCodeLang: outputCodeLang || null,
+          outputImage,
+          outputImageCaption: outputImageCaption || null,
         }),
       });
       setSaveState("saved");
@@ -115,7 +138,7 @@ export function ModuleEditor({ moduleId }: Props) {
     return () => {
       if (saveTimer.current) clearTimeout(saveTimer.current);
     };
-  }, [title, explanation, overview, flow, output, conclusion, moduleId, qc, initialized]);
+  }, [title, explanation, overview, flow, output, outputCode, outputCodeLang, outputImage, outputImageCaption, moduleId, qc, initialized]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
@@ -195,6 +218,15 @@ export function ModuleEditor({ moduleId }: Props) {
     setTab("procedure");
   };
 
+  const handleOutputImage = (file?: File) => {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      setOutputImage(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
+
   if (query.isLoading) return <Skeleton className="h-[600px] w-full rounded-2xl" />;
   if (!query.data) return null;
 
@@ -244,9 +276,6 @@ export function ModuleEditor({ moduleId }: Props) {
           </TabsTrigger>
           <TabsTrigger value="output" className="gap-1.5">
             <Terminal className="h-3.5 w-3.5" /> Output
-          </TabsTrigger>
-          <TabsTrigger value="conclusion" className="gap-1.5">
-            <Flag className="h-3.5 w-3.5" /> Conclusion
           </TabsTrigger>
         </TabsList>
 
@@ -322,28 +351,104 @@ export function ModuleEditor({ moduleId }: Props) {
         <TabsContent value="output" className="mt-4">
           <SectionShell
             title="Expected Output"
-            description="What should learners observe after completing the procedure?"
+            description="What should learners observe after completing the procedure? Add rich text, code snippets, and images."
           >
-            <RichTextEditor
-              value={output}
-              onChange={setOutput}
-              placeholder="Describe the expected output..."
-              minHeight={200}
-            />
-          </SectionShell>
-        </TabsContent>
+            <div className="space-y-4">
+              <div>
+                <Label className="mb-1.5 block text-xs font-medium text-muted-foreground">
+                  Output description
+                </Label>
+                <RichTextEditor
+                  value={output}
+                  onChange={setOutput}
+                  placeholder="Describe the expected output..."
+                  minHeight={200}
+                />
+              </div>
 
-        <TabsContent value="conclusion" className="mt-4">
-          <SectionShell
-            title="Conclusion"
-            description="Summarize what was learned and point to next steps."
-          >
-            <RichTextEditor
-              value={conclusion}
-              onChange={setConclusion}
-              placeholder="Write the conclusion..."
-              minHeight={200}
-            />
+              <div>
+                <div className="mb-1.5 flex items-center justify-between">
+                  <Label className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                    <Terminal className="h-3.5 w-3.5" /> Output code snippet
+                  </Label>
+                  <div className="flex items-center gap-2">
+                    <Select value={outputCodeLang} onValueChange={setOutputCodeLang}>
+                      <SelectTrigger className="h-7 w-[130px] text-xs">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {OUTPUT_LANGUAGES.map((l) => (
+                          <SelectItem key={l} value={l} className="text-xs">
+                            {l}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {outputCode && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="h-7 gap-1.5 text-xs"
+                        onClick={() => setShowOutputPreview((p) => !p)}
+                      >
+                        {showOutputPreview ? <Pencil className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+                        {showOutputPreview ? "Edit" : "Preview"}
+                      </Button>
+                    )}
+                  </div>
+                </div>
+                {showOutputPreview && outputCode ? (
+                  <CodeBlock code={outputCode} language={outputCodeLang} />
+                ) : (
+                  <textarea
+                    value={outputCode}
+                    onChange={(e) => setOutputCode(e.target.value)}
+                    placeholder="// Paste expected output code here..."
+                    className="min-h-[120px] w-full rounded-lg border bg-background px-3 py-2 font-mono text-xs focus:outline-none focus:ring-2 focus:ring-ring"
+                  />
+                )}
+              </div>
+
+              <div>
+                <Label className="mb-1.5 block text-xs font-medium text-muted-foreground">
+                  Output illustration image
+                </Label>
+                {outputImage ? (
+                  <div className="relative overflow-hidden rounded-lg border">
+                    <img src={outputImage} alt={outputImageCaption ?? ""} className="max-h-64 w-full object-contain bg-muted/30" />
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="icon"
+                      className="absolute right-2 top-2 h-7 w-7"
+                      onClick={() => setOutputImage(null)}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ) : (
+                  <label className="flex cursor-pointer flex-col items-center justify-center gap-1.5 rounded-lg border border-dashed py-6 text-sm text-muted-foreground transition hover:bg-muted/40">
+                    <ImagePlus className="h-6 w-6" />
+                    Click to upload an output image
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => handleOutputImage(e.target.files?.[0])}
+                    />
+                  </label>
+                )}
+                {outputImage && (
+                  <Input
+                    value={outputImageCaption}
+                    onChange={(e) => setOutputImageCaption(e.target.value)}
+                    placeholder="Image caption (optional)"
+                    className="mt-2 h-8 text-xs"
+                  />
+                )}
+              </div>
+            </div>
           </SectionShell>
         </TabsContent>
       </Tabs>

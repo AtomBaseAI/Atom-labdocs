@@ -32,7 +32,7 @@ export async function PUT(
   }
   const { id } = await params;
   const body = await req.json();
-  const { title, explanation, overview, flow, output, conclusion, order, hidden } = body;
+  const { title, explanation, overview, flow, output, outputCode, outputCodeLang, outputImage, outputImageCaption, order, hidden } = body;
   const mod = await db.module.update({
     where: { id },
     data: {
@@ -41,7 +41,10 @@ export async function PUT(
       ...(overview !== undefined && { overview }),
       ...(flow !== undefined && { flow }),
       ...(output !== undefined && { output }),
-      ...(conclusion !== undefined && { conclusion }),
+      ...(outputCode !== undefined && { outputCode }),
+      ...(outputCodeLang !== undefined && { outputCodeLang }),
+      ...(outputImage !== undefined && { outputImage }),
+      ...(outputImageCaption !== undefined && { outputImageCaption }),
       ...(order !== undefined && { order }),
       ...(hidden !== undefined && { hidden: !!hidden }),
     },

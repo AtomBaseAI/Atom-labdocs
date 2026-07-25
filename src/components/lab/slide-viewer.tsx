@@ -26,8 +26,7 @@ type Slide =
   | { kind: "title"; title: string; explanation: string | null }
   | { kind: "overview"; overview: string | null; flow: FlowNode[] | null }
   | { kind: "step"; step: Step; index: number; total: number }
-  | { kind: "output"; output: string | null }
-  // | { kind: "conclusion"; conclusion: string | null };
+  | { kind: "output"; output: string | null; outputCode: string | null; outputCodeLang: string | null; outputImage: string | null; outputImageCaption: string | null };
 
 type Props = {
   module: Module & { steps?: Step[] };
@@ -54,8 +53,7 @@ export function SlideViewer({ module, courseTitle, labTitle, accent = "#0d9488" 
       { kind: "title", title: module.title, explanation: module.explanation },
       { kind: "overview", overview: module.overview, flow },
       ...steps.map<Slide>((s, i) => ({ kind: "step", step: s, index: i, total: steps.length })),
-      { kind: "output", output: module.output },
-      // { kind: "conclusion", conclusion: module.conclusion },
+      { kind: "output", output: module.output, outputCode: module.outputCode, outputCodeLang: module.outputCodeLang, outputImage: module.outputImage, outputImageCaption: module.outputImageCaption },
     ];
     return list;
   }, [module]);
@@ -307,24 +305,48 @@ function SlideContent({
 
     case "output":
       return (
-        <div className="space-y-4">
-          <SectionTag icon={Terminal} label="Expected Output" accent={accent} />
-          <h2 className="text-2xl font-semibold" style={{ color: accent }}>Output</h2>
-          <div className="rounded-xl border bg-muted/20 p-5">
-            <RichTextRenderer html={slide.output} />
-          </div>
-        </div>
+        <OutputSlide slide={slide} accent={accent} />
       );
 
-    // case "conclusion":
-    //   return (
-    //     <div className="space-y-4">
-    //       <SectionTag icon={Flag} label="Conclusion" accent={accent} />
-    //       <h2 className="text-2xl font-semibold" style={{ color: accent }}>Conclusion</h2>
-    //       <div className="rounded-xl border-l-4 p-5" style={{ borderColor: accent, background: accent + "0d" }}>
-    //         <RichTextRenderer html={slide.conclusion} />
-    //       </div>
-    //     </div>
-    //   );
+    // case "conclusion": removed
   }
+}
+
+function OutputSlide({ slide, accent = "#0d9488" }: { slide: { kind: "output"; output: string | null; outputCode?: string | null; outputCodeLang?: string | null; outputImage?: string | null; outputImageCaption?: string | null }; accent?: string }) {
+  return (
+    <div className="space-y-4">
+      <SectionTag icon={Terminal} label="Expected Output" accent={accent} />
+      <h2 className="text-2xl font-semibold" style={{ color: accent }}>Output</h2>
+      {slide.output && (
+        <div className="rounded-xl border bg-muted/20 p-5">
+          <RichTextRenderer html={slide.output} />
+        </div>
+      )}
+      {slide.outputCode && (
+        <div>
+          <div className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+            <Terminal className="h-3.5 w-3.5" /> Output Code
+          </div>
+          <CodeBlock code={slide.outputCode} language={slide.outputCodeLang ?? "text"} />
+        </div>
+      )}
+      {slide.outputImage && (
+        <figure className="space-y-2">
+          <div className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+            <ImageIcon className="h-3.5 w-3.5" /> Output Image
+          </div>
+          <img
+            src={slide.outputImage}
+            alt={slide.outputImageCaption ?? "Output illustration"}
+            className="w-full rounded-xl border"
+          />
+          {slide.outputImageCaption && (
+            <figcaption className="text-center text-xs text-muted-foreground">
+              {slide.outputImageCaption}
+            </figcaption>
+          )}
+        </figure>
+      )}
+    </div>
+  );
 }

@@ -54,6 +54,8 @@ import { CourseGroupsSection } from "@/components/admin/course-groups-section";
 import {
   ImportExportSection,
   ExportCourseButton,
+  ExportModuleButton,
+  ExportLabButton,
 } from "@/components/admin/import-export-section";
 import type { Course, CourseGroup, Lab, Module } from "@/lib/types";
 import { courseAccent, DEFAULT_ACCENT } from "@/lib/types";
@@ -83,6 +85,7 @@ import {
   Play,
   FileArchive,
   Ban,
+  ArrowRightLeft,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -1110,7 +1113,7 @@ function AddModuleDialog({
             />
           </div>
           <p className="text-xs text-muted-foreground">
-            After adding, the module editor opens where you can fill in explanation, flow, procedure steps, output and conclusion.
+            After adding, the module editor opens where you can fill in explanation, flow, procedure steps, and output.
           </p>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => setOpen(false)}>
@@ -1129,8 +1132,8 @@ function AddModuleDialog({
 
 /* ============ ROW COMPONENTS (sortable tables) ============ */
 
-const LAB_COLS = "grid-cols-[40px_44px_1fr_90px_80px_110px_44px_44px]";
-const MODULE_COLS = "grid-cols-[40px_44px_1fr_90px_90px_44px_44px]";
+const LAB_COLS = "grid-cols-[40px_44px_1fr_90px_80px_110px_40px_44px_44px]";
+const MODULE_COLS = "grid-cols-[40px_44px_1fr_90px_90px_40px_40px_44px_44px]";
 
 function LabsTable({
   labs,
@@ -1184,6 +1187,8 @@ function LabsTable({
             <div className="text-center">Modules</div>
             <div className="text-center">Link</div>
             <div className="text-center">Manage</div>
+            <div className="text-center" title="Export standalone">⬇</div>
+            <div className="text-center" title="Move">↔</div>
             <div className="text-center">Edit</div>
             <div className="text-center">Delete</div>
           </div>
@@ -1278,6 +1283,12 @@ function SortableLabRow({
         <Button variant="outline" size="sm" onClick={onOpen} className="gap-1.5">
           <Layers className="h-3.5 w-3.5" /> Manage
         </Button>
+      </div>
+      <div className="flex justify-center">
+        <ExportLabButton labId={lab.id} />
+      </div>
+      <div className="flex justify-center">
+        <MoveLabDialog labId={lab.id} />
       </div>
       <div className="flex justify-center">
         <EditLabDialog lab={lab} iconOnly />
@@ -1388,6 +1399,8 @@ function ModulesTable({
             <div>Module</div>
             <div className="text-center">Steps</div>
             <div className="text-center">Slides</div>
+            <div className="text-center" title="Export standalone">⬇</div>
+            <div className="text-center" title="Move">↔</div>
             <div className="text-center">Edit</div>
             <div className="text-center">Delete</div>
           </div>
@@ -1474,7 +1487,13 @@ function SortableModuleRow({
           {stepCount}
         </span>
       </div>
-      <div className="text-center text-sm font-medium">{stepCount + 4}</div>
+      <div className="text-center text-sm font-medium">{stepCount + 3}</div>
+      <div className="flex justify-center">
+        <ExportModuleButton moduleId={module.id} />
+      </div>
+      <div className="flex justify-center">
+        <MoveModuleDialog moduleId={module.id} currentLabTitle={module.labId} />
+      </div>
       <div className="flex justify-center">
         <Button
           variant="ghost"
@@ -1848,4 +1867,179 @@ function EditLabDialog({ lab, asItem, iconOnly }: { lab: Lab; asItem?: boolean; 
 // helper: run effect when deps change (resets form fields when dialog opens)
 function useEffectReset(fn: () => void, deps: unknown[]) {
   useEffect(fn, deps);
+}
+
+// ===================== Move Dialogs =====================
+
+function MoveModuleDialog({ moduleId, currentLabTitle }: { moduleId: string; currentLabTitle: string }) {
+  const qc = useQueryClient();
+  const [open, setOpen] = useState(false);
+  const [targetLabId, setTargetLabId] = useState("");
+
+  // Fetch all labs for the move target dropdown
+  const coursesQuery = useQuery({
+    queryKey: ["admin-courses-move"],
+    queryFn: () => fetchJson<CourseTree[]>("/api/courses?admin=1"),
+    enabled: open,
+  });
+
+  const labsList = coursesQuery.data?.flatMap((c) =>
+    c.labs.map((l) => ({ id: l.id, label: `${c.title} → ${l.title}`, courseId: c.id }))
+  ) ?? [];
+
+  const moveMut = useMutation({
+    mutationFn: async () => {
+      if (!targetLabId) throw new Error("No target lab selected");
+      const res = await fetch("/api/move", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type: "module", id: moduleId, targetId: targetLabId }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Move failed");
+      return data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["admin-course-nested"] });
+      qc.invalidateQueries({ queryKey: ["admin-lab-nested"] });
+      qc.invalidateQueries({ queryKey: ["lab"] });
+      toast({ title: "Module moved" });
+      setOpen(false);
+      setTargetLabId("");
+    },
+    onError: (e: Error) => {
+      toast({ title: "Move failed", description: e.message, variant: "destructive" });
+    },
+  });
+
+  return (
+    <>
+      <Button
+        variant="ghost"
+        size="icon"
+        className="h-7 w-7"
+        onClick={() => setOpen(true)}
+        title="Move module to another lab"
+      >
+        <ArrowRightLeft className="h-3.5 w-3.5" />
+      </Button>
+      <Dialog open={open} onOpenChange={(v) => { if (!v) { setOpen(false); setTargetLabId(""); } else setOpen(true); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <ArrowRightLeft className="h-4 w-4" />
+              Move Module
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div>
+              <Label>Target Lab</Label>
+              <Select value={targetLabId} onValueChange={setTargetLabId}>
+                <SelectTrigger className="mt-1">
+                  <SelectValue placeholder="Select a lab..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {labsList.map((l) => (
+                    <SelectItem key={l.id} value={l.id} className="text-xs">
+                      {l.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setOpen(false); setTargetLabId(""); }}>Cancel</Button>
+            <Button disabled={!targetLabId || moveMut.isPending} onClick={() => moveMut.mutate()}>
+              {moveMut.isPending ? "Moving..." : "Move"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
+function MoveLabDialog({ labId }: { labId: string }) {
+  const qc = useQueryClient();
+  const [open, setOpen] = useState(false);
+  const [targetCourseId, setTargetCourseId] = useState("");
+
+  const coursesQuery = useQuery({
+    queryKey: ["admin-courses-move"],
+    queryFn: () => fetchJson<CourseTree[]>("/api/courses?admin=1"),
+    enabled: open,
+  });
+
+  const moveMut = useMutation({
+    mutationFn: async () => {
+      if (!targetCourseId) throw new Error("No target course selected");
+      const res = await fetch("/api/move", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type: "lab", id: labId, targetId: targetCourseId }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Move failed");
+      return data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["admin-course-nested"] });
+      qc.invalidateQueries({ queryKey: ["admin-courses"] });
+      qc.invalidateQueries({ queryKey: ["course"] });
+      toast({ title: "Lab moved" });
+      setOpen(false);
+      setTargetCourseId("");
+    },
+    onError: (e: Error) => {
+      toast({ title: "Move failed", description: e.message, variant: "destructive" });
+    },
+  });
+
+  return (
+    <>
+      <Button
+        variant="ghost"
+        size="icon"
+        className="h-7 w-7"
+        onClick={() => setOpen(true)}
+        title="Move lab to another course"
+      >
+        <ArrowRightLeft className="h-3.5 w-3.5" />
+      </Button>
+      <Dialog open={open} onOpenChange={(v) => { if (!v) { setOpen(false); setTargetCourseId(""); } else setOpen(true); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <ArrowRightLeft className="h-4 w-4" />
+              Move Lab
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div>
+              <Label>Target Course</Label>
+              <Select value={targetCourseId} onValueChange={setTargetCourseId}>
+                <SelectTrigger className="mt-1">
+                  <SelectValue placeholder="Select a course..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {coursesQuery.data?.map((c) => (
+                    <SelectItem key={c.id} value={c.id} className="text-xs">
+                      {c.title}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setOpen(false); setTargetCourseId(""); }}>Cancel</Button>
+            <Button disabled={!targetCourseId || moveMut.isPending} onClick={() => moveMut.mutate()}>
+              {moveMut.isPending ? "Moving..." : "Move"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
 }

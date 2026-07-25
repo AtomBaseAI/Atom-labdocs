@@ -80,10 +80,12 @@ model Module {
   flow        String? // JSON array of flow nodes [{label, type}]
   // Part 3: Lab Procedure with Steps (stored as related Step rows)
   // Part 4: Output
-  output      String? // rich text HTML
-  // Part 5: Conclusion
-  conclusion  String? // rich text HTML
-  order       Int      @default(0)
+  output            String? // rich text HTML
+  outputCode        String? // code snippet text (shown below output rich text)
+  outputCodeLang    String? // language for syntax highlighting
+  outputImage       String? // image (base64 data url)
+  outputImageCaption String?
+  order             Int      @default(0)
   hidden      Boolean  @default(false) // hide from public view
   steps       Step[]
   createdAt   DateTime @default(now()) @db.Timestamptz(6)

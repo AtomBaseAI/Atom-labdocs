@@ -1,18 +1,23 @@
 // Shared types and helpers for the admin content import/export feature.
 //
-// Export format (version 1):
+// Export format (version 2):
 //   {
-//     version: 1,
+//     version: 2,
 //     exportedAt: ISO string,
-//     type: "full" | "course",
+//     type: "full" | "course" | "lab" | "module",
 //     source: "atom-labdocs",
 //     courseGroups?: CourseGroupExport[],   // only for "full"
 //     courses?: CourseExport[],              // only for "full"
 //     course?: CourseExport,                 // only for "course"
-//     group?: CourseGroupExport | null       // only for "course" — the parent group, if any
+//     group?: CourseGroupExport | null,      // only for "course"
+//     lab?: LabExport,                       // only for "lab"
+//     module?: ModuleExport                  // only for "module"
 //   }
 //
 // Design notes:
+//  - Version 2 adds standalone "lab" and "module" export types with NO parent
+//    references (no course group, course, or lab). These are independently
+//    portable — import a module into any lab, a lab into any course.
 //  - We deliberately DO NOT export database ids. Imports always create fresh
 //    rows with new cuid() ids, so re-importing the same file is idempotent at
 //    the row level (it creates duplicates rather than overwriting). This keeps
@@ -21,13 +26,13 @@
 //    dump, groups are created if missing (matched by name). When importing a
 //    single course, the optional `group` block lets the user recreate/attach
 //    to a group by name.
-//  - Rich-text fields (explanation, overview, output, conclusion, description,
-//    code) are stored verbatim — they are already HTML / plain strings in the
-//    schema.
+//  - Rich-text fields (explanation, overview, output, description, code) are
+//    stored verbatim — they are already HTML / plain strings in the schema.
 //  - `flow` on Module is a JSON string of FlowNode[]; we pass it through
 //    untouched (it is opaque to the import pipeline).
+//  - Output code/image fields on Module follow the same pattern as Step fields.
 
-export const EXPORT_VERSION = 1 as const;
+export const EXPORT_VERSION = 2 as const;
 export const EXPORT_SOURCE = "atom-labdocs" as const;
 
 export type CourseGroupExport = {
@@ -54,7 +59,10 @@ export type ModuleExport = {
   overview: string | null;
   flow: string | null;
   output: string | null;
-  conclusion: string | null;
+  outputCode: string | null;
+  outputCodeLang: string | null;
+  outputImage: string | null;
+  outputImageCaption: string | null;
   order: number;
   hidden: boolean;
   steps: StepExport[];
@@ -77,9 +85,6 @@ export type CourseExport = {
   color: string | null;
   order: number;
   hidden: boolean;
-  // Group reference by name (optional). For "full" exports this is the group
-  // name at export time; for "course" exports the parent group block is also
-  // included separately so its color/icon can be recreated.
   groupName: string | null;
   labs: LabExport[];
 };
@@ -100,13 +105,24 @@ export type ExportFile =
       type: "course";
       course: CourseExport;
       group: CourseGroupExport | null;
+    }
+  | {
+      version: typeof EXPORT_VERSION;
+      source: typeof EXPORT_SOURCE;
+      exportedAt: string;
+      type: "lab";
+      lab: LabExport;
+    }
+  | {
+      version: typeof EXPORT_VERSION;
+      source: typeof EXPORT_SOURCE;
+      exportedAt: string;
+      type: "module";
+      module: ModuleExport;
     };
 
 // ---- Serialization (DB rows -> export shape) ----
 
-// Strip a CourseGroup row down to its portable export shape (no ids, no
-// timestamps). `order` is preserved so an imported dump keeps the same
-// visual ordering.
 export function serializeCourseGroup(
   g: {
     name: string;
@@ -125,7 +141,6 @@ export function serializeCourseGroup(
   };
 }
 
-// Strip a Step row down to its portable export shape.
 export function serializeStep(
   s: {
     title: string;
@@ -155,7 +170,10 @@ export function serializeModule(
     overview: string | null;
     flow: string | null;
     output: string | null;
-    conclusion: string | null;
+    outputCode: string | null;
+    outputCodeLang: string | null;
+    outputImage: string | null;
+    outputImageCaption: string | null;
     order: number;
     hidden: boolean;
     steps: ReturnType<typeof serializeStep>[];
@@ -167,7 +185,10 @@ export function serializeModule(
     overview: m.overview,
     flow: m.flow,
     output: m.output,
-    conclusion: m.conclusion,
+    outputCode: m.outputCode,
+    outputCodeLang: m.outputCodeLang,
+    outputImage: m.outputImage,
+    outputImageCaption: m.outputImageCaption,
     order: m.order,
     hidden: m.hidden,
     steps: m.steps,
@@ -222,9 +243,6 @@ export function serializeCourse(
 
 // ---- Validation (import shape -> safe Prisma input) ----
 
-// Type guards so the import API never trusts raw JSON. Each guard narrows the
-// unknown input and strips unexpected keys, returning null on any mismatch.
-
 function isStr(v: unknown): v is string {
   return typeof v === "string";
 }
@@ -275,7 +293,10 @@ export function parseModuleExport(v: unknown, idx: number): ModuleExport | null 
     overview: isStrOrNull(o.overview) ? o.overview : null,
     flow: isStrOrNull(o.flow) ? o.flow : null,
     output: isStrOrNull(o.output) ? o.output : null,
-    conclusion: isStrOrNull(o.conclusion) ? o.conclusion : null,
+    outputCode: isStrOrNull(o.outputCode) ? o.outputCode : null,
+    outputCodeLang: isStrOrNull(o.outputCodeLang) ? o.outputCodeLang : null,
+    outputImage: isStrOrNull(o.outputImage) ? o.outputImage : null,
+    outputImageCaption: isStrOrNull(o.outputImageCaption) ? o.outputImageCaption : null,
     order: isNum(o.order) ? o.order : idx,
     hidden: isBool(o.hidden) ? o.hidden : false,
     steps,
@@ -343,12 +364,14 @@ export function parseCourseGroupExport(
 
 // Top-level export-file parser. Returns a discriminated union or throws a
 // descriptive Error so the API route can surface a useful 400 message.
+// Supports version 1 and 2 for backward compatibility.
 export function parseExportFile(raw: unknown): ExportFile {
   if (!raw || typeof raw !== "object") {
     throw new Error("Export file must be a JSON object.");
   }
   const o = raw as Record<string, unknown>;
-  if (o.version !== EXPORT_VERSION) {
+  // Accept both v1 and v2
+  if (o.version !== 1 && o.version !== EXPORT_VERSION) {
     throw new Error(
       `Unsupported export version. Expected ${EXPORT_VERSION}, got ${String(o.version)}.`
     );
@@ -361,6 +384,35 @@ export function parseExportFile(raw: unknown): ExportFile {
   if (!isStr(o.exportedAt)) {
     throw new Error("Export file is missing an exportedAt timestamp.");
   }
+
+  if (o.type === "module") {
+    const modExport = parseModuleExport(o.module, 0);
+    if (!modExport) {
+      throw new Error("Export file is missing a valid module object.");
+    }
+    return {
+      version: EXPORT_VERSION,
+      source: EXPORT_SOURCE,
+      exportedAt: o.exportedAt,
+      type: "module",
+      module: modExport,
+    };
+  }
+
+  if (o.type === "lab") {
+    const lab = parseLabExport(o.lab, 0);
+    if (!lab) {
+      throw new Error("Export file is missing a valid lab object.");
+    }
+    return {
+      version: EXPORT_VERSION,
+      source: EXPORT_SOURCE,
+      exportedAt: o.exportedAt,
+      type: "lab",
+      lab,
+    };
+  }
+
   if (o.type === "full") {
     const courseGroupsRaw = isArr(o.courseGroups) ? o.courseGroups : [];
     const courseGroups: CourseGroupExport[] = [];
@@ -402,6 +454,6 @@ export function parseExportFile(raw: unknown): ExportFile {
     };
   }
   throw new Error(
-    `Unknown export type "${String(o.type)}". Expected "full" or "course".`
+    `Unknown export type "${String(o.type)}". Expected "full", "course", "lab", or "module".`
   );
 }
