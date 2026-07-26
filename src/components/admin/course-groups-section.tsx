@@ -144,10 +144,12 @@ export function CourseGroupsSection() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel className="cursor-pointer">
+              Cancel
+            </AlertDialogCancel>
             <AlertDialogAction
               onClick={() => delId && delMut.mutate(delId)}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90 text-white"
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90 text-white cursor-pointer hover:rounded-sm"
             >
               Delete
             </AlertDialogAction>

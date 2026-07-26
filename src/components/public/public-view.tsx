@@ -255,9 +255,6 @@ export function PublicView() {
           <BookOpen className="h-3.5 w-3.5" /> Public Library
         </div>
         <h1 className="text-3xl font-bold tracking-tight">Explore Lab Courses</h1>
-        <p className="text-muted-foreground">
-          Browse courses, labs and slide-based modules. Each module is presented like a deck of slides.
-        </p>
       </div>
 
       {/* Search + course-group filter toolbar */}
