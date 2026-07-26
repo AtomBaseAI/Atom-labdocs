@@ -48,6 +48,7 @@ export type StepExport = {
   description: string | null;
   code: string | null;
   codeLang: string | null;
+  snippets: string | null; // JSON string of CodeSnippet[]
   image: string | null;
   imageFileId: string | null;
   imageCaption: string | null;
@@ -149,6 +150,7 @@ export function serializeStep(
     description: string | null;
     code: string | null;
     codeLang: string | null;
+    snippets: string | null;
     image: string | null;
     imageFileId: string | null;
     imageCaption: string | null;
@@ -160,6 +162,7 @@ export function serializeStep(
     description: s.description,
     code: s.code,
     codeLang: s.codeLang,
+    snippets: s.snippets,
     image: s.image,
     imageFileId: s.imageFileId,
     imageCaption: s.imageCaption,
@@ -277,6 +280,7 @@ export function parseStepExport(v: unknown, idx: number): StepExport | null {
     description: isStrOrNull(o.description) ? o.description : null,
     code: isStrOrNull(o.code) ? o.code : null,
     codeLang: isStrOrNull(o.codeLang) ? o.codeLang : null,
+    snippets: isStrOrNull(o.snippets) ? o.snippets : null,
     image: isStrOrNull(o.image) ? o.image : null,
     imageFileId: isStrOrNull(o.imageFileId) ? o.imageFileId : null,
     imageCaption: isStrOrNull(o.imageCaption) ? o.imageCaption : null,

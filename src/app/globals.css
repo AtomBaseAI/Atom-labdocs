@@ -121,66 +121,149 @@
   }
 }
 
-/* Rich text editor placeholder */
-.rich-editor:empty::before {
+/* TipTap placeholder */
+.tiptap p.is-editor-empty:first-child::before {
   content: attr(data-placeholder);
+  float: left;
   color: oklch(0.556 0 0);
   pointer-events: none;
+  height: 0;
 }
-.dark .rich-editor:empty::before {
+.dark .tiptap p.is-editor-empty:first-child::before {
   color: oklch(0.708 0 0);
 }
 
 /* Shared rich-content typography (editor + rendered) */
 .rich-content,
-.rich-editor {
+.rich-editor,
+.tiptap {
   @apply text-sm leading-relaxed;
 }
 .rich-content :where(h1),
-.rich-editor :where(h1) {
+.rich-editor :where(h1),
+.tiptap :where(h1) {
   @apply text-2xl font-bold mt-4 mb-2;
 }
 .rich-content :where(h2),
-.rich-editor :where(h2) {
+.rich-editor :where(h2),
+.tiptap :where(h2) {
   @apply text-xl font-bold mt-4 mb-2;
 }
 .rich-content :where(h3),
-.rich-editor :where(h3) {
+.rich-editor :where(h3),
+.tiptap :where(h3) {
   @apply text-base font-semibold mt-3 mb-1.5;
 }
 .rich-content :where(p),
-.rich-editor :where(p) {
+.rich-editor :where(p),
+.tiptap :where(p) {
   @apply my-2;
 }
 .rich-content :where(ul),
-.rich-editor :where(ul) {
+.rich-editor :where(ul),
+.tiptap :where(ul) {
   @apply list-disc pl-6 my-2 space-y-1;
 }
 .rich-content :where(ol),
-.rich-editor :where(ol) {
+.rich-editor :where(ol),
+.tiptap :where(ol) {
   @apply list-decimal pl-6 my-2 space-y-1;
 }
 .rich-content :where(code),
-.rich-editor :where(code) {
+.rich-editor :where(code),
+.tiptap :where(code) {
   @apply rounded bg-muted px-1.5 py-0.5 font-mono text-[0.85em];
 }
 .rich-content :where(pre),
-.rich-editor :where(pre) {
+.rich-editor :where(pre),
+.tiptap :where(pre) {
   @apply rounded-lg bg-[#282c34] p-3 my-3 overflow-x-auto text-xs;
 }
 .rich-content :where(pre) :where(code),
-.rich-editor :where(pre) :where(code) {
+.rich-editor :where(pre) :where(code),
+.tiptap :where(pre) :where(code) {
   @apply bg-transparent p-0 text-zinc-100;
 }
 .rich-content :where(blockquote),
-.rich-editor :where(blockquote) {
+.rich-editor :where(blockquote),
+.tiptap :where(blockquote) {
   @apply border-l-4 border-primary/40 pl-4 italic text-muted-foreground my-3;
 }
 .rich-content :where(a),
-.rich-editor :where(a) {
+.rich-editor :where(a),
+.tiptap :where(a) {
   @apply text-primary underline underline-offset-2;
 }
 .rich-content :where(strong),
-.rich-editor :where(strong) {
+.rich-editor :where(strong),
+.tiptap :where(strong) {
   @apply font-semibold;
+}
+
+/* Mark / highlight styles */
+.rich-content :where(mark),
+.rich-editor :where(mark),
+.tiptap :where(mark) {
+  @apply rounded px-0.5 py-0;
+}
+
+/* Table styles (for both rendered content and TipTap editor) */
+.rich-content :where(table),
+.tiptap :where(table) {
+  border-collapse: collapse;
+  border: 1px solid var(--border);
+  width: 100%;
+  margin: 0.75rem 0;
+  table-layout: fixed;
+}
+.rich-content :where(td),
+.rich-content :where(th),
+.tiptap :where(td),
+.tiptap :where(th) {
+  border: 1px solid var(--border);
+  padding: 0.5rem;
+  font-size: 0.875rem;
+  min-width: 80px;
+  vertical-align: top;
+  position: relative;
+}
+.rich-content :where(th),
+.tiptap :where(th) {
+  background-color: oklch(0.97 0 0 / 0.6);
+  font-weight: 600;
+}
+
+/* TipTap selected cell indicator */
+.tiptap .selectedCell::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: oklch(0.205 0 0 / 0.1);
+  pointer-events: none;
+}
+
+/* TipTap column resize handle */
+.column-resize-handle {
+  position: absolute;
+  right: -2px;
+  top: 0;
+  bottom: -2px;
+  width: 4px;
+  background-color: var(--primary);
+  opacity: 0;
+  transition: opacity 0.2s;
+  pointer-events: none;
+}
+.tiptap .column-resize-handle:hover,
+.tiptap .column-resize-handle:active {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* TipTap table wrapper */
+.tableWrapper {
+  overflow-x: auto;
+}
+.tableWrapper table {
+  margin: 0;
 }

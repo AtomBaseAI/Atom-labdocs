@@ -38,8 +38,3 @@ export function normalizeLabLink(input: LabLinkInput): LabLink {
 
   return { linkType, linkUrl: trimmedUrl };
 }
-
-// Convenience: does this lab expose a usable external link?
-export function labHasLink(lab: { linkType: LabLinkType; linkUrl: string | null }): boolean {
-  return lab.linkType !== "none" && !!lab.linkUrl;
-}

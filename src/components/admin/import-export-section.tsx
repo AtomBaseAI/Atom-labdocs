@@ -1458,114 +1458,6 @@ export function ExportCourseButton({
   );
 }
 
-// ===================== Inline per-module standalone Export button =====================
-
-export function ExportModuleButton({
-  moduleId,
-}: {
-  moduleId: string;
-}) {
-  const mut = useMutation({
-    mutationFn: async () => {
-      const res = await fetch(`/api/export/modules/${moduleId}`);
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.error || `Export failed (HTTP ${res.status})`);
-      }
-      return res;
-    },
-    onSuccess: async (res) => {
-      const blob = await res.blob();
-      const cd = res.headers.get("Content-Disposition") || "";
-      const m = cd.match(/filename="?([^"]+)"?/i);
-      const filename = m?.[1] || `module-${moduleId}.json`;
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-      toast({ title: "Module exported", description: `Downloaded ${filename}` });
-    },
-    onError: (e: Error) => {
-      toast({ title: "Export failed", description: e.message, variant: "destructive" });
-    },
-  });
-
-  return (
-    <Button
-      variant="ghost"
-      size="icon"
-      className="h-7 w-7"
-      title="Export this module as standalone JSON (no parent references)"
-      onClick={() => mut.mutate()}
-      disabled={mut.isPending}
-    >
-      {mut.isPending ? (
-        <Loader2 className="h-3.5 w-3.5 animate-spin" />
-      ) : (
-        <FileDown className="h-3.5 w-3.5" />
-      )}
-    </Button>
-  );
-}
-
-// ===================== Inline per-lab standalone Export button =====================
-
-export function ExportLabButton({
-  labId,
-}: {
-  labId: string;
-}) {
-  const mut = useMutation({
-    mutationFn: async () => {
-      const res = await fetch(`/api/export/labs/${labId}`);
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.error || `Export failed (HTTP ${res.status})`);
-      }
-      return res;
-    },
-    onSuccess: async (res) => {
-      const blob = await res.blob();
-      const cd = res.headers.get("Content-Disposition") || "";
-      const m = cd.match(/filename="?([^"]+)"?/i);
-      const filename = m?.[1] || `lab-${labId}.json`;
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-      toast({ title: "Lab exported", description: `Downloaded ${filename}` });
-    },
-    onError: (e: Error) => {
-      toast({ title: "Export failed", description: e.message, variant: "destructive" });
-    },
-  });
-
-  return (
-    <Button
-      variant="ghost"
-      size="icon"
-      className="h-7 w-7"
-      title="Export this lab as standalone JSON (no parent references)"
-      onClick={() => mut.mutate()}
-      disabled={mut.isPending}
-    >
-      {mut.isPending ? (
-        <Loader2 className="h-3.5 w-3.5 animate-spin" />
-      ) : (
-        <FileDown className="h-3.5 w-3.5" />
-      )}
-    </Button>
-  );
-}
-
 // ===================== Import preview card =====================
 
 function ImportPreview({
@@ -1692,6 +1584,7 @@ function parseExportFileClient(raw: unknown): ExportFile {
       description: isStrOrNull(s.description) ? s.description : null,
       code: isStrOrNull(s.code) ? s.code : null,
       codeLang: isStrOrNull(s.codeLang) ? s.codeLang : null,
+      snippets: isStrOrNull(s.snippets) ? s.snippets : null,
       image: isStrOrNull(s.image) ? s.image : null,
       imageFileId: isStrOrNull(s.imageFileId) ? s.imageFileId : null,
       imageCaption: isStrOrNull(s.imageCaption) ? s.imageCaption : null,

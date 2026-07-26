@@ -103,6 +103,7 @@ model Step {
   image        String? // ImageKit CDN URL
   imageFileId  String? @map("image_file_id") // ImageKit fileId for deletion
   imageCaption String? @map("image_caption")
+  snippets     String? @map("snippets") // JSON array of CodeSnippet[]
   order        Int      @default(0)
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")

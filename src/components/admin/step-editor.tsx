@@ -4,18 +4,10 @@ import { useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { RichTextEditor } from "@/components/lab/rich-text-editor";
-import { CodeBlock } from "@/components/lab/code-block";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { GripVertical, Trash2, ImagePlus, X, Terminal, Eye, Pencil, Loader2 } from "lucide-react";
-import type { Step } from "@/lib/types";
+import { SnippetEditor } from "@/components/lab/snippet-editor";
+import { GripVertical, Trash2, ImagePlus, X, Terminal, Loader2 } from "lucide-react";
+import type { CodeSnippet, Step } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 type Props = {
@@ -25,11 +17,25 @@ type Props = {
   dragging?: boolean;
 };
 
-const LANGUAGES = ["text", "cpp", "c", "javascript", "typescript", "python", "java", "bash", "sql", "json", "html", "css", "go", "rust"];
+/** Convert legacy single code/codeLang fields into a CodeSnippet[] (for backward compat) */
+function legacyToSnippets(step: Step): CodeSnippet[] | null {
+  // If snippets already exist, use them
+  if (step.snippets && step.snippets.length > 0) return step.snippets;
+  // If there's legacy code, convert to a single snippet
+  if (step.code) {
+    return [{ id: "legacy", lang: step.codeLang ?? "text", code: step.code, title: undefined }];
+  }
+  return null;
+}
+
+/** Resolve the effective snippets to display, merging legacy into snippets */
+function resolveSnippets(step: Step): CodeSnippet[] {
+  return legacyToSnippets(step) ?? [];
+}
 
 export function StepEditor({ step, onChange, onDelete, dragging }: Props) {
-  const [showPreview, setShowPreview] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const snippets = resolveSnippets(step);
 
   const handleImage = useCallback(async (file?: File) => {
     if (!file) return;
@@ -63,7 +69,6 @@ export function StepEditor({ step, onChange, onDelete, dragging }: Props) {
   }, [onChange]);
 
   const handleRemoveImage = useCallback(() => {
-    // Delete from ImageKit first
     if (step.imageFileId) {
       fetch("/api/upload", {
         method: "DELETE",
@@ -73,6 +78,10 @@ export function StepEditor({ step, onChange, onDelete, dragging }: Props) {
     }
     onChange({ image: null, imageFileId: null });
   }, [step.imageFileId, onChange]);
+
+  const handleSnippetsChange = (newSnippets: CodeSnippet[]) => {
+    onChange({ snippets: newSnippets });
+  };
 
   return (
     <div
@@ -111,50 +120,10 @@ export function StepEditor({ step, onChange, onDelete, dragging }: Props) {
         </div>
 
         <div>
-          <div className="mb-1.5 flex items-center justify-between">
-            <Label className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-              <Terminal className="h-3.5 w-3.5" /> Code snippet
-            </Label>
-            <div className="flex items-center gap-2">
-              <Select
-                value={step.codeLang ?? "text"}
-                onValueChange={(v) => onChange({ codeLang: v })}
-              >
-                <SelectTrigger className="h-7 w-[130px] text-xs">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {LANGUAGES.map((l) => (
-                    <SelectItem key={l} value={l} className="text-xs">
-                      {l}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {step.code && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="h-7 gap-1.5 text-xs"
-                  onClick={() => setShowPreview((p) => !p)}
-                >
-                  {showPreview ? <Pencil className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
-                  {showPreview ? "Edit" : "Preview"}
-                </Button>
-              )}
-            </div>
-          </div>
-          {showPreview && step.code ? (
-            <CodeBlock code={step.code} language={step.codeLang ?? "text"} />
-          ) : (
-            <Textarea
-              value={step.code ?? ""}
-              onChange={(e) => onChange({ code: e.target.value })}
-              placeholder="// Paste code here..."
-              className="min-h-[120px] font-mono text-xs"
-            />
-          )}
+          <Label className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+            <Terminal className="h-3.5 w-3.5" /> Code snippets
+          </Label>
+          <SnippetEditor snippets={snippets} onChange={handleSnippetsChange} />
         </div>
 
         <div>

@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { RichTextRenderer } from "@/components/lab/rich-text-renderer";
 import { CodeBlock } from "@/components/lab/code-block";
 import { FlowDiagram } from "@/components/lab/flow-diagram";
-import type { FlowNode, Module, Step } from "@/lib/types";
+import type { CodeSnippet, FlowNode, Module, Step } from "@/lib/types";
 import {
   ChevronLeft,
   ChevronRight,
@@ -275,14 +275,39 @@ function SlideContent({
               <RichTextRenderer html={slide.step.description} />
             </div>
           )}
-          {slide.step.code && (
-            <div>
-              <div className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-                <Terminal className="h-3.5 w-3.5" /> Code
-              </div>
-              <CodeBlock code={slide.step.code} language={slide.step.codeLang ?? "text"} />
-            </div>
-          )}
+          {/* Snippets (new multi-snippet) takes precedence over legacy single code */}
+          {(() => {
+            const snippets: CodeSnippet[] | null = slide.step.snippets;
+            // Parse snippets if they're a JSON string (from server)
+            const parsedSnippets: CodeSnippet[] | null = snippets
+              ? (typeof snippets === "object" && Array.isArray(snippets)
+                ? snippets
+                : (() => { try { const a = JSON.parse(snippets as unknown as string); return Array.isArray(a) ? a : null; } catch { return null; } })())
+              : null;
+            // If we have parsed snippets with content, render them
+            if (parsedSnippets && parsedSnippets.length > 0) {
+              return parsedSnippets.map((snip, si) => (
+                <div key={si}>
+                  <div className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                    <Terminal className="h-3.5 w-3.5" /> {snip.title || `Code ${si + 1}`}
+                  </div>
+                  <CodeBlock code={snip.code} language={snip.lang ?? "text"} />
+                </div>
+              ));
+            }
+            // Fall back to legacy single code/codeLang
+            if (slide.step.code) {
+              return (
+                <div>
+                  <div className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                    <Terminal className="h-3.5 w-3.5" /> Code
+                  </div>
+                  <CodeBlock code={slide.step.code} language={slide.step.codeLang ?? "text"} />
+                </div>
+              );
+            }
+            return null;
+          })()}
           {slide.step.image && (
             <figure className="space-y-2">
               <div className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-muted-foreground">

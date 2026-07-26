@@ -77,6 +77,13 @@ export type Module = {
   _count?: { steps: number };
 };
 
+export type CodeSnippet = {
+  id: string;
+  title?: string;
+  lang: string;
+  code: string;
+};
+
 export type Step = {
   id: string;
   moduleId: string;
@@ -84,6 +91,7 @@ export type Step = {
   description: string | null;
   code: string | null;
   codeLang: string | null;
+  snippets: CodeSnippet[] | null;
   image: string | null;
   imageFileId: string | null;
   imageCaption: string | null;

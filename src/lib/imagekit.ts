@@ -54,17 +54,3 @@ export async function uploadToImageKit(
 export async function deleteFromImageKit(fileId: string): Promise<void> {
   await imagekit.deleteFile(fileId);
 }
-
-/**
- * Extract the ImageKit file path from a full URL so we can look up the fileId
- * for deletion. ImageKit URLs follow the pattern:
- *   https://ik.imagekit.io/{id}/{path}/{filename}
- *
- * We store the path alongside the URL to make deletion easier.
- */
-export function extractFilePathFromUrl(url: string): string | null {
-  const endpoint = process.env.NEXT_PUBLIC_IMAGEKIT_URL_ENDPOINT;
-  if (!endpoint || !url.startsWith(endpoint)) return null;
-  // Remove the endpoint prefix to get the path
-  return url.slice(endpoint.length);
-}

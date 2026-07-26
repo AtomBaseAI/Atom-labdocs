@@ -54,8 +54,6 @@ import { CourseGroupsSection } from "@/components/admin/course-groups-section";
 import {
   ImportExportSection,
   ExportCourseButton,
-  ExportModuleButton,
-  ExportLabButton,
 } from "@/components/admin/import-export-section";
 import type { Course, CourseGroup, Lab, Module } from "@/lib/types";
 import { courseAccent, DEFAULT_ACCENT } from "@/lib/types";
@@ -86,6 +84,7 @@ import {
   FileArchive,
   Ban,
   ArrowRightLeft,
+  FileDown,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -694,7 +693,6 @@ function OverviewPanel({
                   </div>
                 </button>
                 <VisibilityToggle kind="course" id={c.id} hidden={c.hidden} />
-                <ExportCourseButton courseId={c.id} />
                 <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
               </div>
             ))}
@@ -1132,8 +1130,8 @@ function AddModuleDialog({
 
 /* ============ ROW COMPONENTS (sortable tables) ============ */
 
-const LAB_COLS = "grid-cols-[40px_44px_1fr_90px_80px_110px_40px_44px_44px]";
-const MODULE_COLS = "grid-cols-[40px_44px_1fr_90px_90px_40px_40px_44px_44px]";
+const LAB_COLS = "grid-cols-[40px_44px_1fr_90px_80px_110px_44px_44px_44px]";
+const MODULE_COLS = "grid-cols-[40px_44px_1fr_90px_90px_40px_44px_44px_44px]";
 
 function LabsTable({
   labs,
@@ -1187,7 +1185,6 @@ function LabsTable({
             <div className="text-center">Modules</div>
             <div className="text-center">Link</div>
             <div className="text-center">Manage</div>
-            <div className="text-center" title="Export standalone">⬇</div>
             <div className="text-center" title="Move">↔</div>
             <div className="text-center">Edit</div>
             <div className="text-center">Delete</div>
@@ -1283,9 +1280,6 @@ function SortableLabRow({
         <Button variant="outline" size="sm" onClick={onOpen} className="gap-1.5">
           <Layers className="h-3.5 w-3.5" /> Manage
         </Button>
-      </div>
-      <div className="flex justify-center">
-        <ExportLabButton labId={lab.id} />
       </div>
       <div className="flex justify-center">
         <MoveLabDialog labId={lab.id} />
@@ -1399,7 +1393,7 @@ function ModulesTable({
             <div>Module</div>
             <div className="text-center">Steps</div>
             <div className="text-center">Slides</div>
-            <div className="text-center" title="Export standalone">⬇</div>
+            <div className="text-center" title="Download PDF">PDF</div>
             <div className="text-center" title="Move">↔</div>
             <div className="text-center">Edit</div>
             <div className="text-center">Delete</div>
@@ -1489,7 +1483,7 @@ function SortableModuleRow({
       </div>
       <div className="text-center text-sm font-medium">{stepCount + 3}</div>
       <div className="flex justify-center">
-        <ExportModuleButton moduleId={module.id} />
+        <DownloadPdfButton moduleId={module.id} />
       </div>
       <div className="flex justify-center">
         <MoveModuleDialog moduleId={module.id} currentLabTitle={module.labId} />
@@ -1869,6 +1863,53 @@ function useEffectReset(fn: () => void, deps: unknown[]) {
   useEffect(fn, deps);
 }
 
+// ===================== PDF Download =====================
+
+function DownloadPdfButton({ moduleId }: { moduleId: string }) {
+  const [loading, setLoading] = useState(false);
+
+  const handleDownload = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/modules/${moduleId}/pdf?admin=1`);
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({ error: "Download failed" }));
+        throw new Error(data.error || "Download failed");
+      }
+      const blob = await res.blob();
+      // Extract filename from Content-Disposition header
+      const disposition = res.headers.get("Content-Disposition") || "";
+      const match = disposition.match(/filename="?([^";\n]+)"?/);
+      const filename = match ? match[1] : "module.pdf";
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      toast({ title: "PDF download failed", description: (err as Error).message, variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Button
+      variant="ghost"
+      size="icon"
+      className={cn("h-8 w-8", loading && "animate-pulse")}
+      onClick={handleDownload}
+      disabled={loading}
+      title={loading ? "Generating PDF…" : "Download module as PDF"}
+    >
+      <FileDown className="h-4 w-4" />
+    </Button>
+  );
+}
+
 // ===================== Move Dialogs =====================
 
 function MoveModuleDialog({ moduleId, currentLabTitle }: { moduleId: string; currentLabTitle: string }) {
@@ -1940,7 +1981,7 @@ function MoveModuleDialog({ moduleId, currentLabTitle }: { moduleId: string; cur
                 </SelectTrigger>
                 <SelectContent>
                   {labsList.map((l) => (
-                    <SelectItem key={l.id} value={l.id} className="text-xs">
+                    <SelectItem key={`${l.courseId}-${l.id}`} value={l.id} className="text-xs">
                       {l.label}
                     </SelectItem>
                   ))}

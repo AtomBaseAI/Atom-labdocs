@@ -33,7 +33,7 @@ import {
   arrayMove,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import type { FlowNode, Module, Step } from "@/lib/types";
+import type { CodeSnippet, FlowNode, Module, Step } from "@/lib/types";
 import { nanoid } from "@/lib/nanoid";
 import {
   ScrollText,
@@ -106,7 +106,13 @@ export function ModuleEditor({ moduleId }: Props) {
     setOutputImage(query.data.outputImage ?? null);
     setOutputImageFileId(query.data.outputImageFileId ?? null);
     setOutputImageCaption(query.data.outputImageCaption ?? "");
-    setSteps(query.data.steps);
+    // Parse snippets JSON string from server data into CodeSnippet[] on each step
+    setSteps(query.data.steps.map((s) => {
+      const parsedSnippets: CodeSnippet[] | null = s.snippets
+        ? (typeof s.snippets === "string" ? (() => { try { const arr = JSON.parse(s.snippets as unknown as string); return Array.isArray(arr) ? arr : null; } catch { return null; } })() : s.snippets)
+        : null;
+      return { ...s, snippets: parsedSnippets };
+    }));
     setInitialized(true);
   }
 
@@ -186,6 +192,7 @@ export function ModuleEditor({ moduleId }: Props) {
           description: step.description,
           code: step.code,
           codeLang: step.codeLang,
+          snippets: step.snippets ? JSON.stringify(step.snippets) : null,
           image: step.image,
           imageFileId: step.imageFileId,
           imageCaption: step.imageCaption,
