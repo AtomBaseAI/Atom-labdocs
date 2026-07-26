@@ -147,7 +147,7 @@ export function CourseGroupsSection() {
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => delId && delMut.mutate(delId)}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90 text-white"
             >
               Delete
             </AlertDialogAction>
@@ -222,8 +222,10 @@ function CreateGroupDialog() {
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
-          <Button disabled={!name.trim() || mut.isPending} onClick={() => mut.mutate()}>
+          <Button variant="outline" onClick={() => setOpen(false)} className="cursor-pointer">
+            Cancel
+          </Button>
+          <Button disabled={!name.trim() || mut.isPending} onClick={() => mut.mutate()} className="hover:bg-green-800 cursor-pointer">
             {mut.isPending ? "Creating..." : "Create"}
           </Button>
         </DialogFooter>
@@ -295,8 +297,10 @@ function EditGroupDialog({ group }: { group: CourseGroup }) {
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
-          <Button disabled={mut.isPending} onClick={() => mut.mutate()}>
+          <Button variant="outline" onClick={() => setOpen(false)} className="cursor-pointer">
+            Cancel
+          </Button>
+          <Button disabled={mut.isPending} onClick={() => mut.mutate()} className="hover:bg-blue-800 cursor-pointer">
             {mut.isPending ? "Saving..." : "Save"}
           </Button>
         </DialogFooter>

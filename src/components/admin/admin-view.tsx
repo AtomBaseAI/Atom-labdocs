@@ -428,7 +428,7 @@ function CourseTreeItem({
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuItem
-                className="text-destructive focus:text-destructive text-xs"
+                className="text-destructive focus:text-destructive text-xs hover:text-white"
                 onSelect={(e) => { e.preventDefault(); setDelOpen(true); }}
               >
                 <Trash2 className="mr-2 h-3 w-3" /> Delete
@@ -519,10 +519,12 @@ function CourseTreeItem({
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel className="cursor-pointer">
+              Cancel
+            </AlertDialogCancel>
             <AlertDialogAction
               onClick={() => del.mutate()}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90 text-white cursor-pointer hover:rounded-sm"
             >
               Delete
             </AlertDialogAction>
@@ -1046,10 +1048,10 @@ function AddLabDialog({ courseId }: { courseId: string }) {
             onUrlChange={setLinkUrl}
           />
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+            <Button type="button" variant="outline" onClick={() => setOpen(false)} className="cursor-pointer">
               Cancel
             </Button>
-            <Button type="submit" disabled={!title.trim() || mut.isPending} className="gap-1.5">
+            <Button type="submit" disabled={!title.trim() || mut.isPending} className="gap-1.5 hover:bg-green-800 cursor-pointer">
               {mut.isPending ? (
                 <>
                   <Plus className="h-4 w-4" /> Adding...
@@ -1135,10 +1137,10 @@ function AddModuleDialog({
             After adding, the module editor opens where you can fill in explanation, flow, procedure steps, and output.
           </p>
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+            <Button type="button" variant="outline" onClick={() => setOpen(false)} className="cursor-pointer">
               Cancel
             </Button>
-            <Button type="submit" disabled={!title.trim() || mut.isPending} className="gap-1.5">
+            <Button type="submit" disabled={!title.trim() || mut.isPending} className="gap-1.5 hover:bg-green-800 cursor-pointer">
               <Plus className="h-4 w-4" />
               {mut.isPending ? "Adding..." : "Add & Edit"}
             </Button>
@@ -1347,10 +1349,12 @@ function DeleteLabButton({ lab }: { lab: Lab }) {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel className="cursor-pointer">
+              Cancel
+            </AlertDialogCancel>
             <AlertDialogAction
               onClick={() => del.mutate()}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90 text-white cursor-pointer"
             >
               Delete
             </AlertDialogAction>
@@ -1564,7 +1568,7 @@ function DeleteModuleButton({ module }: { module: Module }) {
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => del.mutate()}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90 hover:text-white"
             >
               Delete
             </AlertDialogAction>
@@ -1622,7 +1626,7 @@ function GroupSelect({
     <div>
       <Label>Course group</Label>
       <Select value={value} onValueChange={onChange}>
-        <SelectTrigger className="mt-1">
+        <SelectTrigger className="mt-1 w-full">
           <SelectValue placeholder="Select a group (optional)" />
         </SelectTrigger>
         <SelectContent>
@@ -1688,7 +1692,7 @@ function CreateCourseDialog({ compact }: { compact?: boolean }) {
           <DialogTitle>Create course</DialogTitle>
         </DialogHeader>
         <div className="space-y-4 py-2">
-          <GroupSelect value={groupId} onChange={setGroupId} />
+          <GroupSelect value={groupId} onChange={setGroupId}/>
           <div>
             <Label>Title</Label>
             <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Data Structures" />
@@ -1702,8 +1706,8 @@ function CreateCourseDialog({ compact }: { compact?: boolean }) {
           </p>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
-          <Button disabled={!title.trim() || mut.isPending} onClick={() => mut.mutate()}>
+          <Button variant="outline" onClick={() => setOpen(false)} className="cursor-pointer">Cancel</Button>
+          <Button disabled={!title.trim() || mut.isPending} onClick={() => mut.mutate()} className="hover:bg-green-800 cursor-pointer">
             {mut.isPending ? "Creating..." : "Create"}
           </Button>
         </DialogFooter>
@@ -1784,8 +1788,10 @@ function EditCourseDialog({ course, compact, asItem }: { course: Course; compact
           </p>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
-          <Button disabled={mut.isPending} onClick={() => mut.mutate()}>
+          <Button variant="outline" onClick={() => setOpen(false)} className="cursor-pointer">
+            Cancel
+          </Button>
+          <Button disabled={mut.isPending} onClick={() => mut.mutate()} className="hover:bg-blue-800 cursor-pointer">
             {mut.isPending ? "Saving..." : "Save"}
           </Button>
         </DialogFooter>
@@ -1869,8 +1875,10 @@ function EditLabDialog({ lab, asItem, iconOnly }: { lab: Lab; asItem?: boolean; 
           />
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
-          <Button disabled={mut.isPending} onClick={() => mut.mutate()}>
+          <Button variant="outline" onClick={() => setOpen(false)} className="cursor-pointer">
+            Cancel
+          </Button>
+          <Button disabled={mut.isPending} onClick={() => mut.mutate()} className="hover:bg-blue-800 cursor-pointer">
             {mut.isPending ? "Saving..." : "Save"}
           </Button>
         </DialogFooter>
