@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useAppStore } from "@/store/app-store";
+import { usePublicNav } from "@/hooks/use-public-nav";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -20,6 +20,7 @@ import {
   ListOrdered,
   Play as PlayIcon,
   FileArchive,
+  Globe as GlobeIcon,
   Search,
   X,
   SlidersHorizontal,
@@ -40,8 +41,7 @@ const GLASS_CARD =
   "relative overflow-hidden bg-white/60 backdrop-blur-xl backdrop-saturate-150 border-white/50 shadow-lg shadow-black/5 dark:bg-zinc-900/40 dark:border-white/10";
 
 export function PublicView() {
-  const { selectedCourseId, selectedLabId, selectedModuleId, selectCourse, selectLab, selectModule } =
-    useAppStore();
+  const nav = usePublicNav();
 
   const coursesQuery = useQuery({
     queryKey: ["courses"],
@@ -49,25 +49,25 @@ export function PublicView() {
   });
 
   const courseQuery = useQuery({
-    queryKey: ["course", selectedCourseId],
-    queryFn: () => fetchJson<Course & { labs: Lab[] }>("/api/courses/" + selectedCourseId),
-    enabled: !!selectedCourseId,
+    queryKey: ["course", nav.selectedCourseId],
+    queryFn: () => fetchJson<Course & { labs: Lab[] }>("/api/courses/" + nav.selectedCourseId),
+    enabled: !!nav.selectedCourseId,
   });
 
   const labQuery = useQuery({
-    queryKey: ["lab", selectedLabId],
+    queryKey: ["lab", nav.selectedLabId],
     queryFn: () =>
-      fetchJson<Lab & { course: Course; modules: Module[] }>("/api/labs/" + selectedLabId),
-    enabled: !!selectedLabId,
+      fetchJson<Lab & { course: Course; modules: Module[] }>("/api/labs/" + nav.selectedLabId),
+    enabled: !!nav.selectedLabId,
   });
 
   const moduleQuery = useQuery({
-    queryKey: ["module", selectedModuleId],
+    queryKey: ["module", nav.selectedModuleId],
     queryFn: () =>
       fetchJson<Module & { lab: Lab & { course: Course }; steps: Step[] }>(
-        "/api/modules/" + selectedModuleId
+        "/api/modules/" + nav.selectedModuleId
       ),
-    enabled: !!selectedModuleId,
+    enabled: !!nav.selectedModuleId,
   });
 
   // ---- Root course list: search + course-group badge filters ----
@@ -108,30 +108,25 @@ export function PublicView() {
     });
   }, [coursesQuery.data, search, selectedGroupIds]);
 
-  // Reset everything below the root course list.
-  const goRoot = () => {
-    selectModule(null);
-    selectLab(null);
-    selectCourse(null);
-  };
+  // goRoot is provided by usePublicNav via nav.goRoot
 
   // Build a "group" crumb that sits between "Courses" and the course name.
   // Clicking it returns to the full course list (no group-filtered view exists).
   const groupCrumb = (group?: CourseGroup | null): { label: string; onClick: () => void }[] =>
-    group ? [{ label: group.name, onClick: goRoot }] : [];
+    group ? [{ label: group.name, onClick: nav.goRoot }] : [];
 
   // Module presentation view
-  if (selectedModuleId && moduleQuery.data) {
+  if (nav.selectedModuleId && moduleQuery.data) {
     return (
       <div className="space-y-4">
         <Breadcrumbs
           items={[
-            { label: "Courses", onClick: goRoot },
+            { label: "Courses", onClick: nav.goRoot },
             ...groupCrumb(moduleQuery.data.lab.course.group),
             ...(moduleQuery.data.lab.course
-              ? [{ label: moduleQuery.data.lab.course.title, onClick: () => { selectModule(null); selectLab(null); selectCourse(moduleQuery.data.lab.course.id); } }]
+              ? [{ label: moduleQuery.data.lab.course.title, onClick: () => nav.goToCourseFromModule(moduleQuery.data.lab.course.id) }]
               : []),
-            { label: moduleQuery.data.lab.title, onClick: () => { selectModule(null); selectLab(moduleQuery.data.lab.id); } },
+            { label: moduleQuery.data.lab.title, onClick: () => nav.goToLabFromModule(moduleQuery.data.lab.id) },
             { label: moduleQuery.data.title },
           ]}
         />
@@ -145,20 +140,20 @@ export function PublicView() {
     );
   }
 
-  if (selectedModuleId && moduleQuery.isLoading) {
+  if (nav.selectedModuleId && moduleQuery.isLoading) {
     return <Skeleton className="h-[600px] w-full rounded-2xl" />;
   }
 
   // Module list within a lab
-  if (selectedLabId && labQuery.data) {
+  if (nav.selectedLabId && labQuery.data) {
     return (
       <div className="space-y-6">
         <Breadcrumbs
           items={[
-            { label: "Courses", onClick: goRoot },
+            { label: "Courses", onClick: nav.goRoot },
             ...groupCrumb(labQuery.data.course.group),
             ...(labQuery.data.course
-              ? [{ label: labQuery.data.course.title, onClick: () => { selectModule(null); selectLab(null); selectCourse(labQuery.data.course.id); } }]
+              ? [{ label: labQuery.data.course.title, onClick: () => nav.goToCourseFromModule(labQuery.data.course.id) }]
               : []),
             { label: labQuery.data.title },
           ]}
@@ -184,7 +179,7 @@ export function PublicView() {
                 index={i}
                 accent={courseAccent(labQuery.data.course)}
                 group={labQuery.data.course.group}
-                onClick={() => selectModule(m.id)}
+                onClick={() => nav.goToModule(m.id)}
               />
             ))}
           </div>
@@ -193,17 +188,17 @@ export function PublicView() {
     );
   }
 
-  if (selectedLabId && labQuery.isLoading) {
+  if (nav.selectedLabId && labQuery.isLoading) {
     return <Skeleton className="h-40 w-full rounded-2xl" />;
   }
 
   // Lab list within a course
-  if (selectedCourseId && courseQuery.data) {
+  if (nav.selectedCourseId && courseQuery.data) {
     return (
       <div className="space-y-6">
         <Breadcrumbs
           items={[
-            { label: "Courses", onClick: goRoot },
+            { label: "Courses", onClick: nav.goRoot },
             ...groupCrumb(courseQuery.data.group),
             { label: courseQuery.data.title },
           ]}
@@ -237,7 +232,7 @@ export function PublicView() {
                 index={i}
                 accent={courseAccent(courseQuery.data)}
                 group={courseQuery.data.group}
-                onClick={() => selectLab(lab.id)}
+                onClick={() => nav.goToLab(lab.id)}
               />
             ))}
           </div>
@@ -246,7 +241,7 @@ export function PublicView() {
     );
   }
 
-  if (selectedCourseId && courseQuery.isLoading) {
+  if (nav.selectedCourseId && courseQuery.isLoading) {
     return <Skeleton className="h-40 w-full rounded-2xl" />;
   }
 
@@ -260,9 +255,6 @@ export function PublicView() {
           <BookOpen className="h-3.5 w-3.5" /> Public Library
         </div>
         <h1 className="text-3xl font-bold tracking-tight">Explore Lab Courses</h1>
-        <p className="text-muted-foreground">
-          Browse courses, labs and slide-based modules. Each module is presented like a deck of slides.
-        </p>
       </div>
 
       {/* Search + course-group filter toolbar */}
@@ -289,7 +281,7 @@ export function PublicView() {
         filteredCourses.length > 0 ? (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {filteredCourses.map((course, i) => (
-              <CourseCard key={course.id} course={course} index={i} onClick={() => selectCourse(course.id)} />
+              <CourseCard key={course.id} course={course} index={i} onClick={() => nav.goToCourse(course.id)} />
             ))}
           </div>
         ) : (
@@ -429,9 +421,14 @@ function LabCard({
   onClick: () => void;
 }) {
   const hasLink = lab.linkType !== "none" && !!lab.linkUrl;
-  const isDownload = lab.linkType === "download";
-  const LinkIcon = isDownload ? FileArchive : PlayIcon;
-  const linkLabel = isDownload ? "Download lab assets" : "Watch lab video";
+  const LinkIcon =
+    lab.linkType === "download" ? FileArchive
+    : lab.linkType === "watch" ? PlayIcon
+    : GlobeIcon;
+  const linkLabel =
+    lab.linkType === "download" ? "Download"
+    : lab.linkType === "watch" ? "Watch"
+    : "Browse";
   return (
     <Card
       className={cn(
@@ -452,36 +449,32 @@ function LabCard({
           </div>
           <GroupBadge group={group} />
         </div>
-        <div className="flex items-start gap-2">
-          <h3 className="min-w-0 flex-1 text-base font-semibold leading-tight transition-colors group-hover:text-[var(--accent)]">{lab.title}</h3>
-          {hasLink && (
-            <a
-              href={lab.linkUrl!}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={(e) => e.stopPropagation()}
-              className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border bg-background text-foreground transition hover:bg-accent hover:text-accent-foreground"
-              title={linkLabel}
-              aria-label={linkLabel}
-            >
-              <LinkIcon className="h-3.5 w-3.5" />
-            </a>
-          )}
-        </div>
+        <h3 className="min-w-0 text-base font-semibold leading-tight transition-colors group-hover:text-[var(--accent)]">{lab.title}</h3>
         {lab.description && (
           <p className="mt-1.5 line-clamp-2 text-sm text-muted-foreground">{lab.description}</p>
         )}
-        <div className="mt-4 flex items-center justify-between">
+        <div className="mt-4 flex items-center justify-between gap-2">
           <span className="text-xs font-medium text-muted-foreground">
             {(lab._count?.modules ?? 0)} modules
           </span>
-          <div className="flex items-center gap-1.5 text-sm font-medium" style={{ color: accent }}>
-            {hasLink ? (isDownload ? "Download" : "Watch") : "Open lab"}
-            {hasLink ? (
-              <LinkIcon className="h-4 w-4" />
-            ) : (
-              <ChevronRight className="h-4 w-4 transition group-hover:translate-x-0.5" />
+          <div className="flex items-center gap-2">
+            {hasLink && (
+              <a
+                href={lab.linkUrl!}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                className="inline-flex items-center gap-1 rounded-md border bg-background px-2 py-1 text-xs font-medium text-foreground transition hover:bg-accent hover:text-accent-foreground"
+                aria-label={linkLabel}
+              >
+                <LinkIcon className="h-3.5 w-3.5" />
+                {linkLabel}
+              </a>
             )}
+            <span className="flex items-center gap-1.5 text-sm font-medium" style={{ color: accent }}>
+              Open lab
+              <ChevronRight className="h-4 w-4 transition group-hover:translate-x-0.5" />
+            </span>
           </div>
         </div>
       </div>

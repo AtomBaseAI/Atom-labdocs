@@ -36,10 +36,11 @@ export type Course = {
 };
 
 // The kind of external link a lab can expose.
-// "none"   -> no link (default)
+// "none"    -> no link (default)
 // "download" -> a downloadable resource (zip/file), shown with a download icon
-// "watch"  -> a watchable resource (video/stream), shown with a play icon
-export type LabLinkType = "none" | "download" | "watch";
+// "watch"   -> a watchable resource (video/stream), shown with a play icon
+// "browse"  -> a browsable resource (website/page), shown with a globe icon
+export type LabLinkType = "none" | "download" | "watch" | "browse";
 
 export type Lab = {
   id: string;

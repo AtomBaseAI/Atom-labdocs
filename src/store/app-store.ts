@@ -6,15 +6,17 @@ type AppState = {
   mode: AppMode;
   setMode: (m: AppMode) => void;
 
-  // Public navigation
+  // Public navigation (synced with URL search params)
   selectedCourseId: string | null;
   selectedLabId: string | null;
   selectedModuleId: string | null;
   selectCourse: (id: string | null) => void;
   selectLab: (id: string | null) => void;
   selectModule: (id: string | null) => void;
+  // Initialize all three at once (no cascading resets)
+  initPublicNav: (courseId: string | null, labId: string | null, moduleId: string | null) => void;
 
-  // Admin navigation
+  // Admin navigation (not URL-synced)
   adminCourseId: string | null;
   adminLabId: string | null;
   adminModuleId: string | null;
@@ -34,6 +36,8 @@ export const useAppStore = create<AppState>((set) => ({
     set({ selectedCourseId, selectedLabId: null, selectedModuleId: null }),
   selectLab: (selectedLabId) => set({ selectedLabId, selectedModuleId: null }),
   selectModule: (selectedModuleId) => set({ selectedModuleId }),
+  initPublicNav: (selectedCourseId, selectedLabId, selectedModuleId) =>
+    set({ selectedCourseId, selectedLabId, selectedModuleId }),
 
   adminCourseId: null,
   adminLabId: null,

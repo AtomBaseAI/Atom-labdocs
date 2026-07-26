@@ -83,6 +83,7 @@ import {
   Play,
   FileArchive,
   Ban,
+  Globe,
   ArrowRightLeft,
   FileDown,
 } from "lucide-react";
@@ -849,13 +850,14 @@ function LabPanel({
   );
 }
 
-/* ============ LAB LINK (download / watch) shared bits ============ */
+/* ============ LAB LINK (download / watch / browse) shared bits ============ */
 
-// The three link-type options shown in the admin dropdown.
-const LAB_LINK_OPTIONS: { value: LabLinkType; label: string; hint: string }[] = [
-  { value: "none", label: "No link", hint: "Default — no link shown" },
-  { value: "download", label: "Download", hint: "Show a download button (zip/file)" },
-  { value: "watch", label: "Watch", hint: "Show a play button (video/stream)" },
+// The four link-type options shown in the admin dropdown.
+const LAB_LINK_OPTIONS: { value: LabLinkType; label: string; hint: string; icon: typeof Play }[] = [
+  { value: "none", label: "No link", hint: "Default — no link shown", icon: Ban },
+  { value: "download", label: "Download", hint: "Show a download button (zip/file)", icon: FileArchive },
+  { value: "watch", label: "Watch", hint: "Show a play button (video/stream)", icon: Play },
+  { value: "browse", label: "Browse", hint: "Show a globe button (website/page)", icon: Globe },
 ];
 
 // Reusable form fields for choosing a link type + URL.
@@ -871,6 +873,20 @@ function LabLinkFields({
   onTypeChange: (v: LabLinkType) => void;
   onUrlChange: (v: string) => void;
 }) {
+  // Resolve display label / placeholder / hint for each link type.
+  const urlLabel =
+    linkType === "download" ? "Download URL"
+    : linkType === "watch" ? "Watch URL"
+    : "Browse URL";
+  const urlPlaceholder =
+    linkType === "download" ? "https://example.com/lab-assets.zip"
+    : linkType === "watch" ? "https://www.youtube.com/watch?v=..."
+    : "https://example.com/lab-guide";
+  const btnHint =
+    linkType === "download" ? "download"
+    : linkType === "watch" ? "play"
+    : "globe";
+
   return (
     <div className="space-y-3 rounded-lg border bg-muted/20 p-3">
       <div>
@@ -882,9 +898,12 @@ function LabLinkFields({
           <SelectContent>
             {LAB_LINK_OPTIONS.map((opt) => (
               <SelectItem key={opt.value} value={opt.value}>
-                <div className="flex flex-col">
-                  <span className="font-medium">{opt.label}</span>
-                  <span className="text-xs text-muted-foreground">{opt.hint}</span>
+                <div className="flex items-center gap-2">
+                  <opt.icon className="h-4 w-4 shrink-0 text-muted-foreground" />
+                  <div className="flex flex-col">
+                    <span className="font-medium">{opt.label}</span>
+                    <span className="text-xs text-muted-foreground">{opt.hint}</span>
+                  </div>
                 </div>
               </SelectItem>
             ))}
@@ -893,19 +912,15 @@ function LabLinkFields({
       </div>
       {linkType !== "none" && (
         <div>
-          <Label>{linkType === "download" ? "Download URL" : "Watch URL"}</Label>
+          <Label>{urlLabel}</Label>
           <Input
             value={linkUrl}
             onChange={(e) => onUrlChange(e.target.value)}
-            placeholder={
-              linkType === "download"
-                ? "https://example.com/lab-assets.zip"
-                : "https://www.youtube.com/watch?v=..."
-            }
+            placeholder={urlPlaceholder}
             type="url"
           />
           <p className="mt-1 text-xs text-muted-foreground">
-            Opens in a new tab when the {linkType === "download" ? "download" : "play"} button is clicked.
+            Opens in a new tab when the {btnHint} button is clicked.
           </p>
         </div>
       )}
@@ -917,6 +932,7 @@ function LabLinkFields({
 // - "none"      -> muted Ban icon, not clickable (disabled)
 // - "download"  -> FileArchive (zip) icon, clickable (opens link in new tab)
 // - "watch"     -> Play icon, clickable (opens link in new tab)
+// - "browse"    -> Globe icon, clickable (opens link in new tab)
 function AdminLabLinkCell({ lab }: { lab: Pick<Lab, "linkType" | "linkUrl"> }) {
   if (lab.linkType === "none" || !lab.linkUrl) {
     return (
@@ -929,9 +945,14 @@ function AdminLabLinkCell({ lab }: { lab: Pick<Lab, "linkType" | "linkUrl"> }) {
       </span>
     );
   }
-  const isDownload = lab.linkType === "download";
-  const Icon = isDownload ? FileArchive : Play;
-  const label = isDownload ? "Download lab assets" : "Watch lab video";
+  const Icon =
+    lab.linkType === "download" ? FileArchive
+    : lab.linkType === "watch" ? Play
+    : Globe;
+  const label =
+    lab.linkType === "download" ? "Download lab assets"
+    : lab.linkType === "watch" ? "Watch lab video"
+    : "Browse lab page";
   return (
     <a
       href={lab.linkUrl}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import { useSession, signOut } from "next-auth/react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAppStore } from "@/store/app-store";
@@ -150,7 +150,9 @@ export default function Home() {
         )}
       >
         {mode === "public" ? (
-          <PublicView />
+          <Suspense fallback={<div className="flex items-center justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>}>
+            <PublicView />
+          </Suspense>
         ) : isAdmin ? (
           <AdminView />
         ) : (

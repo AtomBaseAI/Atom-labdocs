@@ -12,7 +12,7 @@ export type LabLink = {
   linkUrl: string | null;
 };
 
-export const LAB_LINK_TYPES: LabLinkType[] = ["none", "download", "watch"];
+export const LAB_LINK_TYPES: LabLinkType[] = ["none", "download", "watch", "browse"];
 
 export function isLabLinkType(value: unknown): value is LabLinkType {
   return typeof value === "string" && (LAB_LINK_TYPES as string[]).includes(value);
