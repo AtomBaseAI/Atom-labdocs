@@ -1885,46 +1885,23 @@ function useEffectReset(fn: () => void, deps: unknown[]) {
 }
 
 // ===================== PDF Download =====================
+// Opens the styled module HTML in a new browser tab. The HTML has a built-in
+// "Print / Save as PDF" overlay bar so the user can use their browser's
+// Print dialog to generate a high-quality A4 PDF — no server-side child
+// process needed (Vercel-compatible).
 
 function DownloadPdfButton({ moduleId }: { moduleId: string }) {
-  const [loading, setLoading] = useState(false);
-
-  const handleDownload = async () => {
-    setLoading(true);
-    try {
-      const res = await fetch(`/api/modules/${moduleId}/pdf?admin=1`);
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({ error: "Download failed" }));
-        throw new Error(data.error || "Download failed");
-      }
-      const blob = await res.blob();
-      // Extract filename from Content-Disposition header
-      const disposition = res.headers.get("Content-Disposition") || "";
-      const match = disposition.match(/filename="?([^";\n]+)"?/);
-      const filename = match ? match[1] : "module.pdf";
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-    } catch (err) {
-      toast({ title: "PDF download failed", description: (err as Error).message, variant: "destructive" });
-    } finally {
-      setLoading(false);
-    }
+  const handleOpenPdf = () => {
+    window.open(`/api/modules/${moduleId}/pdf?admin=1`, "_blank");
   };
 
   return (
     <Button
       variant="ghost"
       size="icon"
-      className={cn("h-8 w-8", loading && "animate-pulse")}
-      onClick={handleDownload}
-      disabled={loading}
-      title={loading ? "Generating PDF…" : "Download module as PDF"}
+      className={cn("h-8 w-8")}
+      onClick={handleOpenPdf}
+      title="Open module for Print / Save as PDF"
     >
       <FileDown className="h-4 w-4" />
     </Button>
