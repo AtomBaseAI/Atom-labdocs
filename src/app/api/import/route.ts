@@ -18,7 +18,7 @@ import {
 //   - NEVER updates or deletes existing rows. Imports only create new rows.
 //   - Course groups are matched by NAME:
 //       * If a group with the same name exists, courses are attached to it.
-//       * Otherwise the group is created (preserving icon/color/description).
+//       * Otherwise the group is created (preserving icon/color).
 //       * `options.duplicateGroups=true` forces creation of new groups even
 //         when a same-named one exists (useful for "copy to a fresh group").
 //   - Courses are always created with NEW cuids, even if a same-titled course
@@ -94,7 +94,6 @@ export async function POST(req: NextRequest) {
     const created_group = await db.courseGroup.create({
       data: {
         name,
-        description: g.description,
         icon: g.icon,
         color: g.color,
         order: (maxOrder._max.order ?? -1) + 1,
@@ -112,11 +111,11 @@ export async function POST(req: NextRequest) {
     const courseRow = await db.course.create({
       data: {
         title: c.title,
-        description: c.description,
         icon: c.icon,
         color: c.color,
         order: (maxOrder._max.order ?? -1) + 1,
         hidden: c.hidden,
+        locked: c.locked,
         groupId,
       },
     });
@@ -126,10 +125,10 @@ export async function POST(req: NextRequest) {
       const labRow = await db.lab.create({
         data: {
           title: lab.title,
-          description: lab.description,
           courseId: courseRow.id,
           order: lab.order,
           hidden: lab.hidden,
+          locked: lab.locked,
           linkType: lab.linkType,
           linkUrl: lab.linkUrl,
         },
@@ -152,6 +151,7 @@ export async function POST(req: NextRequest) {
             outputImageCaption: mod.outputImageCaption,
             order: mod.order,
             hidden: mod.hidden,
+            locked: mod.locked,
           },
         });
         created.modules += 1;
@@ -165,6 +165,7 @@ export async function POST(req: NextRequest) {
               code: step.code,
               codeLang: step.codeLang,
               snippets: step.snippets,
+              blocks: step.blocks,
               image: step.image,
               imageFileId: step.imageFileId,
               imageCaption: step.imageCaption,
@@ -200,7 +201,6 @@ export async function POST(req: NextRequest) {
             await db.courseGroup.create({
               data: {
                 name,
-                description: g.description,
                 icon: g.icon,
                 color: g.color,
                 order: (maxOrder._max.order ?? -1) + 1,
@@ -221,7 +221,7 @@ export async function POST(req: NextRequest) {
             const match = file.courseGroups.find(
               (g) => g.name?.trim() === c.groupName?.trim()
             );
-            groupForCourse = match ?? { name: c.groupName, description: null, icon: null, color: null, order: 0 };
+            groupForCourse = match ?? { name: c.groupName, icon: null, color: null, order: 0 };
           } else {
             // Group already ensured to exist above; resolve by name.
             const existing = await db.courseGroup.findFirst({
@@ -275,6 +275,7 @@ export async function POST(req: NextRequest) {
           outputImageCaption: mod.outputImageCaption,
           order: (maxOrder._max.order ?? -1) + 1,
           hidden: mod.hidden,
+          locked: mod.locked,
         },
       });
       created.modules += 1;
@@ -287,6 +288,7 @@ export async function POST(req: NextRequest) {
             code: step.code,
             codeLang: step.codeLang,
             snippets: step.snippets,
+            blocks: step.blocks,
             image: step.image,
             imageFileId: step.imageFileId,
             imageCaption: step.imageCaption,
@@ -312,10 +314,10 @@ export async function POST(req: NextRequest) {
       const labRow = await db.lab.create({
         data: {
           title: lab.title,
-          description: lab.description,
           courseId: targetCourseId,
           order: (maxOrder._max.order ?? -1) + 1,
           hidden: lab.hidden,
+          locked: lab.locked,
           linkType: lab.linkType,
           linkUrl: lab.linkUrl,
         },
@@ -337,6 +339,7 @@ export async function POST(req: NextRequest) {
             outputImageCaption: mod.outputImageCaption,
             order: mod.order,
             hidden: mod.hidden,
+            locked: mod.locked,
           },
         });
         created.modules += 1;
@@ -349,6 +352,7 @@ export async function POST(req: NextRequest) {
               code: step.code,
               codeLang: step.codeLang,
               snippets: step.snippets,
+              blocks: step.blocks,
               image: step.image,
               imageFileId: step.imageFileId,
               imageCaption: step.imageCaption,

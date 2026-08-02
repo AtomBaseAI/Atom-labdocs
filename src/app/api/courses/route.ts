@@ -40,7 +40,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   const body = await req.json();
-  const { title, description, icon, color, groupId } = body;
+  const { title, icon, color, groupId } = body;
   if (!title || !title.trim()) {
     return NextResponse.json({ error: "Title is required" }, { status: 400 });
   }
@@ -48,7 +48,6 @@ export async function POST(req: NextRequest) {
   const course = await db.course.create({
     data: {
       title: title.trim(),
-      description: description ?? null,
       icon: icon ?? null,
       color: color ?? null,
       groupId: groupId || null,

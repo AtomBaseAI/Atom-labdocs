@@ -40,9 +40,9 @@ export async function GET(
 
   const labExport = serializeLab({
     title: lab.title,
-    description: lab.description,
     order: lab.order,
     hidden: lab.hidden,
+    locked: lab.locked,
     linkType: lab.linkType,
     linkUrl: lab.linkUrl,
     modules: lab.modules.map((m) =>
@@ -59,6 +59,7 @@ export async function GET(
         outputImageCaption: m.outputImageCaption,
         order: m.order,
         hidden: m.hidden,
+        locked: m.locked,
         steps: m.steps.map((s) => serializeStep(s)),
       })
     ),

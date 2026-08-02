@@ -40,7 +40,7 @@ export async function PUT(
   }
   const { id } = await params;
   const body = await req.json();
-  const { title, description, order, hidden, linkType, linkUrl } = body;
+  const { title, order, hidden, locked, linkType, linkUrl } = body;
   const link =
     linkType !== undefined || linkUrl !== undefined
       ? normalizeLabLink({ linkType, linkUrl } as LabLinkInput)
@@ -49,9 +49,9 @@ export async function PUT(
     where: { id },
     data: {
       ...(title !== undefined && { title: title.trim() }),
-      ...(description !== undefined && { description }),
       ...(order !== undefined && { order }),
       ...(hidden !== undefined && { hidden: !!hidden }),
+      ...(locked !== undefined && { locked: !!locked }),
       ...(link && { linkType: link.linkType, linkUrl: link.linkUrl }),
     },
   });

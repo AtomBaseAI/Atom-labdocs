@@ -17,7 +17,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   const body = await req.json();
-  const { name, description, icon, color } = body;
+  const { name, icon, color } = body;
   if (!name || !name.trim()) {
     return NextResponse.json({ error: "Name is required" }, { status: 400 });
   }
@@ -25,7 +25,6 @@ export async function POST(req: NextRequest) {
   const group = await db.courseGroup.create({
     data: {
       name: name.trim(),
-      description: description ?? null,
       icon: icon ?? null,
       color: color ?? null,
       order: (maxOrder._max.order ?? -1) + 1,

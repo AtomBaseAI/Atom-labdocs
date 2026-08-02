@@ -77,6 +77,7 @@ function generateModuleHTML(
       code: string | null;
       codeLang: string | null;
       snippets: string | null;
+      blocks: string | null;
       image: string | null;
       imageCaption: string | null;
       order: number;
@@ -95,8 +96,8 @@ function generateModuleHTML(
     } catch {}
   }
 
-  // Parse snippets for each step
-  const stepsWithSnippets = mod.steps.map((step) => {
+  // Parse snippets + blocks for each step
+  const stepsWithContent = mod.steps.map((step) => {
     let parsedSnippets: { id?: string; title?: string; lang: string; code: string }[] | null = null;
     if (step.snippets) {
       try {
@@ -104,7 +105,14 @@ function generateModuleHTML(
         if (Array.isArray(raw) && raw.length > 0) parsedSnippets = raw;
       } catch {}
     }
-    return { ...step, parsedSnippets };
+    let parsedBlocks: { type: string; id: string; html?: string; lang?: string; code?: string; title?: string; url?: string; fileId?: string | null; caption?: string | null }[] | null = null;
+    if (step.blocks) {
+      try {
+        const raw = typeof step.blocks === "string" ? JSON.parse(step.blocks) : step.blocks;
+        if (Array.isArray(raw) && raw.length > 0) parsedBlocks = raw;
+      } catch {}
+    }
+    return { ...step, parsedSnippets, parsedBlocks };
   });
 
   return `<!DOCTYPE html>
@@ -122,10 +130,15 @@ html, body {
   margin: 0;
   padding: 0;
   background: #ffffff;
-  font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, 'Helvetica Neue', Arial, sans-serif;
+  font-family: 'JetBrains Mono', 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
   color: #1a1a2e;
   line-height: 1.6;
   font-size: 11pt;
+}
+
+/* ── Sharp edges everywhere in the PDF ── */
+*, *::before, *::after {
+  border-radius: 0 !important;
 }
 
 /* ── Print overlay bar: visible on screen, hidden when printing ── */
@@ -179,8 +192,8 @@ html, body {
 .rich-content ul, .rich-content ol { margin: 0.5em 0; padding-left: 1.5em; }
 .rich-content li { margin: 0.2em 0; }
 .rich-content blockquote { border-left: 3px solid ${accent}; margin: 0.8em 0; padding: 0.4em 1em; background: ${accent}11; font-style: italic; }
-.rich-content code { background: #f1f3f5; padding: 0.15em 0.4em; border-radius: 3px; font-size: 0.9em; font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace; }
-.rich-content pre { background: #282c34; color: #abb2bf; padding: 1em 1.25em; border-radius: 8px; overflow-x: auto; margin: 0.8em 0; font-size: 0.85em; line-height: 1.5; }
+.rich-content code { background: #f1f3f5; padding: 0.15em 0.4em; border-radius: 0; font-size: 0.9em; font-family: 'JetBrains Mono', 'Cascadia Code', 'Fira Code', 'Consolas', monospace; }
+.rich-content pre { background: #282c34; color: #abb2bf; padding: 1em 1.25em; border-radius: 0; overflow-x: auto; margin: 0.8em 0; font-size: 0.85em; line-height: 1.5; }
 .rich-content pre code { background: transparent; padding: 0; color: inherit; }
 .rich-content a { color: ${accent}; text-decoration: underline; }
 .rich-content strong { font-weight: 700; }
@@ -211,7 +224,7 @@ body { padding-top: 3em; } /* room for the print bar */
 .code-block-header .dot-yellow { background: #ffbd2e; }
 .code-block-header .dot-green { background: #27c93f; }
 .code-block-header .lang-label { color: #abb2bf; font-size: 0.8em; margin-left: 1em; font-weight: 500; }
-.code-block-body { padding: 1em 1.25em; overflow-x: auto; font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace; font-size: 0.8em; line-height: 1.5; color: #abb2bf; white-space: pre-wrap; word-break: break-word; }
+.code-block-body { padding: 1em 1.25em; overflow-x: auto; font-family: 'JetBrains Mono', 'Cascadia Code', 'Fira Code', 'Consolas', monospace; font-size: 0.8em; line-height: 1.5; color: #abb2bf; white-space: pre-wrap; word-break: break-word; }
 .code-label { display: flex; align-items: center; gap: 0.5em; font-size: 0.8em; font-weight: 600; color: #6b7280; margin-bottom: 0.5em; }
 .step-image { margin: 1em 0; page-break-inside: avoid; }
 .step-image img { max-width: 100%; height: auto; border-radius: 8px; border: 1px solid #e5e7eb; }
@@ -268,14 +281,34 @@ ${mod.overview ? `
 ` : ""}
 
 <div class="section-tag">📝 Lab Procedure</div>
-${stepsWithSnippets.map((step, i) => `
-<div class="step-section">
-  <div class="step-header">
-    <div class="step-number">${i + 1}</div>
-    <div class="step-title">${escapeHtml(step.title)}</div>
-  </div>
-  <div class="step-body">
-    ${step.description ? `<div class="rich-content">${step.description}</div>` : ""}
+${stepsWithContent.map((step, i) => {
+  // Render step body from blocks when present; otherwise fall back to legacy fields.
+  const bodyHtml = step.parsedBlocks && step.parsedBlocks.length > 0
+    ? step.parsedBlocks.map((block) => {
+        if (block.type === "description") {
+          return block.html ? `<div class="rich-content">${block.html}</div>` : "";
+        }
+        if (block.type === "snippet") {
+          if (!block.code) return "";
+          return `
+    <div class="code-label">⌨ ${escapeHtml(block.title || "Code")}</div>
+    <div class="code-block">
+      <div class="code-block-header"><div class="dots"><div class="dot dot-red"></div><div class="dot dot-yellow"></div><div class="dot dot-green"></div></div><div class="lang-label">${escapeHtml(block.lang || "text")}</div></div>
+      <div class="code-block-body">${escapeHtml(block.code)}</div>
+    </div>`;
+        }
+        if (block.type === "image") {
+          if (!block.url) return "";
+          return `
+    <div class="step-image">
+      <div class="image-label">🖼 Image</div>
+      <img src="${block.url}" alt="${escapeHtml(block.caption || "Step illustration")}" />
+      ${block.caption ? `<div class="caption">${escapeHtml(block.caption)}</div>` : ""}
+    </div>`;
+        }
+        return "";
+      }).join("")
+    : `${step.description ? `<div class="rich-content">${step.description}</div>` : ""}
     ${step.parsedSnippets ? step.parsedSnippets.map((snip) => `
     <div class="code-label">⌨ ${escapeHtml(snip.title || `Code ${step.parsedSnippets!.indexOf(snip) + 1}`)}</div>
     <div class="code-block">
@@ -295,10 +328,19 @@ ${stepsWithSnippets.map((step, i) => `
       <img src="${step.image}" alt="${escapeHtml(step.imageCaption || "Step illustration")}" />
       ${step.imageCaption ? `<div class="caption">${escapeHtml(step.imageCaption)}</div>` : ""}
     </div>
-    ` : ""}
+    ` : ""}`;
+  return `
+<div class="step-section">
+  <div class="step-header">
+    <div class="step-number">${i + 1}</div>
+    <div class="step-title">${escapeHtml(step.title)}</div>
+  </div>
+  <div class="step-body">
+    ${bodyHtml}
   </div>
 </div>
-`).join("")}
+`;
+}).join("")}
 
 ${mod.output || mod.outputCode || mod.outputImage ? `
 <div class="output-section">

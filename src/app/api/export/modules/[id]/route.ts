@@ -45,6 +45,7 @@ export async function GET(
     outputImageCaption: mod.outputImageCaption,
     order: mod.order,
     hidden: mod.hidden,
+    locked: mod.locked,
     steps: mod.steps.map((s) => serializeStep(s)),
   });
 

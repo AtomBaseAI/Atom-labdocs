@@ -46,6 +46,7 @@ export async function PUT(
     outputImageCaption,
     order,
     hidden,
+    locked,
   } = body;
 
   // Only delete from ImageKit when outputImage is explicitly being removed or replaced
@@ -78,6 +79,7 @@ export async function PUT(
       ...(outputImageCaption !== undefined && { outputImageCaption }),
       ...(order !== undefined && { order }),
       ...(hidden !== undefined && { hidden: !!hidden }),
+      ...(locked !== undefined && { locked: !!locked }),
     },
   });
   return NextResponse.json(mod);

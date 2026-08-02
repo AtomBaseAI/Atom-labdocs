@@ -9,7 +9,6 @@ export type FlowNode = {
 export type CourseGroup = {
   id: string;
   name: string;
-  description: string | null;
   icon: string | null;
   color: string | null;
   order: number;
@@ -23,11 +22,11 @@ export type Course = {
   id: string;
   groupId: string | null;
   title: string;
-  description: string | null;
   icon: string | null;
   color: string | null;
   order: number;
   hidden: boolean;
+  locked: boolean;
   createdAt: string;
   updatedAt: string;
   labs?: Lab[];
@@ -46,9 +45,9 @@ export type Lab = {
   id: string;
   courseId: string;
   title: string;
-  description: string | null;
   order: number;
   hidden: boolean;
+  locked: boolean;
   linkType: LabLinkType;
   linkUrl: string | null;
   createdAt: string;
@@ -72,6 +71,7 @@ export type Module = {
   outputImageCaption: string | null;
   order: number;
   hidden: boolean;
+  locked: boolean;
   createdAt: string;
   updatedAt: string;
   steps?: Step[];
@@ -85,6 +85,15 @@ export type CodeSnippet = {
   code: string;
 };
 
+// A unified content block within a step. Steps store an ordered list of these
+// so that descriptions, code snippets, and illustration images can each appear
+// multiple times and in any order. "Add" buttons between blocks let the admin
+// insert a new block of any type at any position.
+export type StepBlock =
+  | { type: "description"; id: string; html: string }
+  | { type: "snippet"; id: string; lang: string; code: string; title?: string }
+  | { type: "image"; id: string; url: string; fileId: string | null; caption: string | null };
+
 export type Step = {
   id: string;
   moduleId: string;
@@ -93,6 +102,7 @@ export type Step = {
   code: string | null;
   codeLang: string | null;
   snippets: CodeSnippet[] | null;
+  blocks: StepBlock[] | null;
   image: string | null;
   imageFileId: string | null;
   imageCaption: string | null;

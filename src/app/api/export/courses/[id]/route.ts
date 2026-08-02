@@ -56,17 +56,17 @@ export async function GET(
   const courseExport = serializeCourse(
     {
       title: course.title,
-      description: course.description,
       icon: course.icon,
       color: course.color,
       order: course.order,
       hidden: course.hidden,
+      locked: course.locked,
       labs: course.labs.map((l) =>
         serializeLab({
           title: l.title,
-          description: l.description,
           order: l.order,
           hidden: l.hidden,
+          locked: l.locked,
           linkType: l.linkType,
           linkUrl: l.linkUrl,
           modules: l.modules.map((m) =>
@@ -83,6 +83,7 @@ export async function GET(
               outputImageCaption: m.outputImageCaption,
               order: m.order,
               hidden: m.hidden,
+              locked: m.locked,
               steps: m.steps.map((s) => serializeStep(s)),
             })
           ),

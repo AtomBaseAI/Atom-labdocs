@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { RichTextRenderer } from "@/components/lab/rich-text-renderer";
 import { CodeBlock } from "@/components/lab/code-block";
 import { FlowDiagram } from "@/components/lab/flow-diagram";
-import type { CodeSnippet, FlowNode, Module, Step } from "@/lib/types";
+import type { CodeSnippet, FlowNode, Module, Step, StepBlock } from "@/lib/types";
 import {
   ChevronLeft,
   ChevronRight,
@@ -270,61 +270,7 @@ function SlideContent({
             </span>
             <h2 className="text-xl font-semibold md:text-2xl" style={{ color: accent }}>{slide.step.title}</h2>
           </div>
-          {slide.step.description && (
-            <div className="rounded-lg bg-muted/30 p-4">
-              <RichTextRenderer html={slide.step.description} />
-            </div>
-          )}
-          {/* Snippets (new multi-snippet) takes precedence over legacy single code */}
-          {(() => {
-            const snippets: CodeSnippet[] | null = slide.step.snippets;
-            // Parse snippets if they're a JSON string (from server)
-            const parsedSnippets: CodeSnippet[] | null = snippets
-              ? (typeof snippets === "object" && Array.isArray(snippets)
-                ? snippets
-                : (() => { try { const a = JSON.parse(snippets as unknown as string); return Array.isArray(a) ? a : null; } catch { return null; } })())
-              : null;
-            // If we have parsed snippets with content, render them
-            if (parsedSnippets && parsedSnippets.length > 0) {
-              return parsedSnippets.map((snip, si) => (
-                <div key={si}>
-                  <div className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-                    <Terminal className="h-3.5 w-3.5" /> {snip.title || `Code ${si + 1}`}
-                  </div>
-                  <CodeBlock code={snip.code} language={snip.lang ?? "text"} />
-                </div>
-              ));
-            }
-            // Fall back to legacy single code/codeLang
-            if (slide.step.code) {
-              return (
-                <div>
-                  <div className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-                    <Terminal className="h-3.5 w-3.5" /> Code
-                  </div>
-                  <CodeBlock code={slide.step.code} language={slide.step.codeLang ?? "text"} />
-                </div>
-              );
-            }
-            return null;
-          })()}
-          {slide.step.image && (
-            <figure className="space-y-2">
-              <div className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-                <ImageIcon className="h-3.5 w-3.5" /> Image
-              </div>
-              <img
-                src={slide.step.image}
-                alt={slide.step.imageCaption ?? "Step illustration"}
-                className="w-full rounded-xl border"
-              />
-              {slide.step.imageCaption && (
-                <figcaption className="text-center text-xs text-muted-foreground">
-                  {slide.step.imageCaption}
-                </figcaption>
-              )}
-            </figure>
-          )}
+          <StepContentBlocks step={slide.step} />
         </div>
       );
 
@@ -335,6 +281,143 @@ function SlideContent({
 
     // case "conclusion": removed
   }
+}
+
+// Render a step's content from the unified `blocks` array when present
+// (supports multiple descriptions, snippets, and images in any order).
+// Falls back to legacy single description / snippets / image fields otherwise.
+function StepContentBlocks({ step }: { step: Step }) {
+  // Try to resolve blocks from the step. `blocks` may be a JSON string (from
+  // the server) or an already-parsed array.
+  let blocks: StepBlock[] | null = null;
+  if (step.blocks) {
+    if (typeof step.blocks === "string") {
+      try {
+        const arr = JSON.parse(step.blocks as unknown as string);
+        if (Array.isArray(arr)) blocks = arr;
+      } catch {
+        blocks = null;
+      }
+    } else if (Array.isArray(step.blocks)) {
+      blocks = step.blocks;
+    }
+  }
+
+  // ── Blocks path: render each block in order ──
+  if (blocks && blocks.length > 0) {
+    // Precompute a running snippet number for each block so we can label
+    // "Code 1", "Code 2", ... without mutating a counter during render.
+    let snipCount = 0;
+    const snippetNumbers = new Map<string, number>();
+    for (const b of blocks) {
+      if (b.type === "snippet") {
+        snipCount += 1;
+        snippetNumbers.set(b.id, snipCount);
+      }
+    }
+    return (
+      <>
+        {blocks.map((block) => {
+          if (block.type === "description") {
+            if (!block.html) return null;
+            return (
+              <div key={block.id} className="rounded-lg bg-muted/30 p-4">
+                <RichTextRenderer html={block.html} />
+              </div>
+            );
+          }
+          if (block.type === "snippet") {
+            if (!block.code) return null;
+            const num = snippetNumbers.get(block.id) ?? 1;
+            return (
+              <div key={block.id}>
+                <div className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                  <Terminal className="h-3.5 w-3.5" /> {block.title || `Code ${num}`}
+                </div>
+                <CodeBlock code={block.code} language={block.lang ?? "text"} />
+              </div>
+            );
+          }
+          // image block
+          if (!block.url) return null;
+          return (
+            <figure key={block.id} className="space-y-2">
+              <div className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                <ImageIcon className="h-3.5 w-3.5" /> Image
+              </div>
+              <img
+                src={block.url}
+                alt={block.caption ?? "Step illustration"}
+                className="w-full rounded-xl border"
+              />
+              {block.caption && (
+                <figcaption className="text-center text-xs text-muted-foreground">
+                  {block.caption}
+                </figcaption>
+              )}
+            </figure>
+          );
+        })}
+      </>
+    );
+  }
+
+  // ── Legacy fallback: single description → snippets/code → single image ──
+  return (
+    <>
+      {step.description && (
+        <div className="rounded-lg bg-muted/30 p-4">
+          <RichTextRenderer html={step.description} />
+        </div>
+      )}
+      {(() => {
+        const snippets: CodeSnippet[] | null = step.snippets;
+        const parsedSnippets: CodeSnippet[] | null = snippets
+          ? (typeof snippets === "object" && Array.isArray(snippets)
+            ? snippets
+            : (() => { try { const a = JSON.parse(snippets as unknown as string); return Array.isArray(a) ? a : null; } catch { return null; } })())
+          : null;
+        if (parsedSnippets && parsedSnippets.length > 0) {
+          return parsedSnippets.map((snip, si) => (
+            <div key={si}>
+              <div className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                <Terminal className="h-3.5 w-3.5" /> {snip.title || `Code ${si + 1}`}
+              </div>
+              <CodeBlock code={snip.code} language={snip.lang ?? "text"} />
+            </div>
+          ));
+        }
+        if (step.code) {
+          return (
+            <div>
+              <div className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                <Terminal className="h-3.5 w-3.5" /> Code
+              </div>
+              <CodeBlock code={step.code} language={step.codeLang ?? "text"} />
+            </div>
+          );
+        }
+        return null;
+      })()}
+      {step.image && (
+        <figure className="space-y-2">
+          <div className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+            <ImageIcon className="h-3.5 w-3.5" /> Image
+          </div>
+          <img
+            src={step.image}
+            alt={step.imageCaption ?? "Step illustration"}
+            className="w-full rounded-xl border"
+          />
+          {step.imageCaption && (
+            <figcaption className="text-center text-xs text-muted-foreground">
+              {step.imageCaption}
+            </figcaption>
+          )}
+        </figure>
+      )}
+    </>
+  );
 }
 
 function OutputSlide({ slide, accent = "#0d9488" }: { slide: { kind: "output"; output: string | null; outputCode?: string | null; outputCodeLang?: string | null; outputImage?: string | null; outputImageCaption?: string | null }; accent?: string }) {

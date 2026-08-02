@@ -41,16 +41,16 @@ export async function PUT(
   }
   const { id } = await params;
   const body = await req.json();
-  const { title, description, icon, color, order, hidden, groupId } = body;
+  const { title, icon, color, order, hidden, locked, groupId } = body;
   const course = await db.course.update({
     where: { id },
     data: {
       ...(title !== undefined && { title: title.trim() }),
-      ...(description !== undefined && { description }),
       ...(icon !== undefined && { icon }),
       ...(color !== undefined && { color }),
       ...(order !== undefined && { order }),
       ...(hidden !== undefined && { hidden: !!hidden }),
+      ...(locked !== undefined && { locked: !!locked }),
       ...(groupId !== undefined && { groupId: groupId || null }),
     },
   });

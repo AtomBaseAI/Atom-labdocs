@@ -25,6 +25,7 @@ export async function GET() {
                 id: true,
                 title: true,
                 hidden: true,
+                locked: true,
                 order: true,
               },
             },

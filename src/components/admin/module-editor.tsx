@@ -33,7 +33,7 @@ import {
   arrayMove,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import type { CodeSnippet, FlowNode, Module, Step } from "@/lib/types";
+import type { CodeSnippet, FlowNode, Module, Step, StepBlock } from "@/lib/types";
 import { nanoid } from "@/lib/nanoid";
 import {
   ScrollText,
@@ -106,12 +106,15 @@ export function ModuleEditor({ moduleId }: Props) {
     setOutputImage(query.data.outputImage ?? null);
     setOutputImageFileId(query.data.outputImageFileId ?? null);
     setOutputImageCaption(query.data.outputImageCaption ?? "");
-    // Parse snippets JSON string from server data into CodeSnippet[] on each step
+    // Parse snippets + blocks JSON strings from server data into arrays on each step
     setSteps(query.data.steps.map((s) => {
       const parsedSnippets: CodeSnippet[] | null = s.snippets
         ? (typeof s.snippets === "string" ? (() => { try { const arr = JSON.parse(s.snippets as unknown as string); return Array.isArray(arr) ? arr : null; } catch { return null; } })() : s.snippets)
         : null;
-      return { ...s, snippets: parsedSnippets };
+      const parsedBlocks: StepBlock[] | null = s.blocks
+        ? (typeof s.blocks === "string" ? (() => { try { const arr = JSON.parse(s.blocks as unknown as string); return Array.isArray(arr) ? arr : null; } catch { return null; } })() : s.blocks)
+        : null;
+      return { ...s, snippets: parsedSnippets, blocks: parsedBlocks };
     }));
     setInitialized(true);
   }
@@ -193,6 +196,7 @@ export function ModuleEditor({ moduleId }: Props) {
           code: step.code,
           codeLang: step.codeLang,
           snippets: step.snippets ? JSON.stringify(step.snippets) : null,
+          blocks: step.blocks ? JSON.stringify(step.blocks) : null,
           image: step.image,
           imageFileId: step.imageFileId,
           imageCaption: step.imageCaption,

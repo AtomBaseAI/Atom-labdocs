@@ -139,7 +139,6 @@ export async function POST(req: NextRequest) {
       serializeCourse(
         {
           title: c.title,
-          description: c.description,
           icon: c.icon,
           color: c.color,
           order: c.order,
@@ -149,7 +148,6 @@ export async function POST(req: NextRequest) {
             .map((l) =>
               serializeLab({
                 title: l.title,
-                description: l.description,
                 order: l.order,
                 hidden: l.hidden,
                 linkType: l.linkType,

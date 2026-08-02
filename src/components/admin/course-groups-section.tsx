@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
   DialogContent,
@@ -43,9 +42,9 @@ async function fetchJson<T>(url: string): Promise<T> {
   return res.json();
 }
 
-const GROUP_COLORS = ["#0d9488", "#0891b2", "#7c3aed", "#c026d3", "#db2777", "#e11d48", "#ea580c", "#ca8a04", "#16a34a", "#0f766e"];
+const GROUP_COLORS = ["#0d9488", "#0891b2", "#7c3aed", "#c026d3", "#db2777", "#e11d48", "#ea580c", "#ca8a04", "#16a34a", "#0f766e", "#0284c7", "#65a30d"];
 
-export function CourseGroupsSection() {
+export function CourseGroupsSection({ embedded = false }: { embedded?: boolean } = {}) {
   const qc = useQueryClient();
   const groupsQuery = useQuery({
     queryKey: ["admin-course-groups"],
@@ -64,18 +63,8 @@ export function CourseGroupsSection() {
     },
   });
 
-  return (
-    <Card className="p-5">
-      <div className="mb-3 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Layers2 className="h-4 w-4 text-primary" />
-          <h2 className="text-sm font-semibold">Course Groups</h2>
-          <span className="text-xs text-muted-foreground">
-            ({groupsQuery.data?.length ?? 0})
-          </span>
-        </div>
-        <CreateGroupDialog />
-      </div>
+  const body = (
+    <>
       <p className="mb-3 text-xs text-muted-foreground">
         Group courses for organizing and sorting. Courses can be assigned to a group when creating them.
       </p>
@@ -101,7 +90,7 @@ export function CourseGroupsSection() {
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-medium">{group.name}</p>
                 <p className="truncate text-xs text-muted-foreground">
-                  {group.description || "No description"} · {group._count?.courses ?? 0} courses
+                  {group._count?.courses ?? 0} courses
                 </p>
               </div>
               <EditGroupDialog group={group} />
@@ -156,29 +145,47 @@ export function CourseGroupsSection() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+    </>
+  );
+
+  if (embedded) {
+    return body;
+  }
+
+  return (
+    <Card className="p-5">
+      <div className="mb-3 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Layers2 className="h-4 w-4 text-primary" />
+          <h2 className="text-sm font-semibold">Course Groups</h2>
+          <span className="text-xs text-muted-foreground">
+            ({groupsQuery.data?.length ?? 0})
+          </span>
+        </div>
+        <CreateGroupDialog />
+      </div>
+      {body}
     </Card>
   );
 }
 
-function CreateGroupDialog() {
+export function CreateGroupDialog() {
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
-  const [description, setDescription] = useState("");
   const [color, setColor] = useState(GROUP_COLORS[0]);
   const mut = useMutation({
     mutationFn: () =>
       fetch("/api/course-groups", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, description, color }),
+        body: JSON.stringify({ name, color }),
       }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["admin-course-groups"] });
       toast({ title: "Course group created" });
       setOpen(false);
       setName("");
-      setDescription("");
       setColor(GROUP_COLORS[0]);
     },
     onError: () => {
@@ -200,10 +207,6 @@ function CreateGroupDialog() {
           <div>
             <Label>Name</Label>
             <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Programming Labs" />
-          </div>
-          <div>
-            <Label>Description</Label>
-            <Textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Short description (optional)" />
           </div>
           <div>
             <Label>Accent color</Label>
@@ -240,14 +243,13 @@ function EditGroupDialog({ group }: { group: CourseGroup }) {
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [name, setName] = useState(group.name);
-  const [description, setDescription] = useState(group.description ?? "");
   const [color, setColor] = useState(group.color ?? GROUP_COLORS[0]);
   const mut = useMutation({
     mutationFn: () =>
       fetch("/api/course-groups/" + group.id, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, description, color }),
+        body: JSON.stringify({ name, color }),
       }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["admin-course-groups"] });
@@ -275,10 +277,6 @@ function EditGroupDialog({ group }: { group: CourseGroup }) {
           <div>
             <Label>Name</Label>
             <Input value={name} onChange={(e) => setName(e.target.value)} />
-          </div>
-          <div>
-            <Label>Description</Label>
-            <Textarea value={description} onChange={(e) => setDescription(e.target.value)} />
           </div>
           <div>
             <Label>Accent color</Label>

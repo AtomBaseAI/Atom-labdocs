@@ -21,6 +21,7 @@ import {
   Play as PlayIcon,
   FileArchive,
   Globe as GlobeIcon,
+  Lock,
   Search,
   X,
   SlidersHorizontal,
@@ -33,12 +34,18 @@ async function fetchJson<T>(url: string): Promise<T> {
   return res.json();
 }
 
-// Shared glassmorphism treatment for every public-facing card.
-// Translucent surface + heavy backdrop blur + saturation boost + soft border +
-// a drop shadow. The accent glow (added per-card) gives the blur something to
-// refract so the glass reads clearly on the muted page background.
-const GLASS_CARD =
-  "relative overflow-hidden bg-white/60 backdrop-blur-xl backdrop-saturate-150 border-white/50 shadow-lg shadow-black/5 dark:bg-zinc-900/40 dark:border-white/10";
+// Public card structure = an OUTER bordered container with an INNER glass
+// face inset by a small gap. The hover "moving border" blob lives in that
+// gap (behind the inner face), so its colored glow only traces the card
+// edges on hover instead of bleeding through the middle.
+// (Design outline adapted from Uiverse.io / dylanharriscameron.)
+const CARD_OUTER =
+  "group relative cursor-pointer overflow-hidden border border-black/10 shadow-lg shadow-black/5 transition-all hover:shadow-xl hover:-translate-y-0.5 dark:border-white/10";
+
+// Inner frosted-glass face. Slightly more opaque than before so the blob
+// behind it stays hidden in the center; the gap around it reveals the glow.
+const GLASS_FACE =
+  "relative z-10 m-[5px] bg-white/85 backdrop-blur-xl backdrop-saturate-150 dark:bg-zinc-900/80";
 
 export function PublicView() {
   const nav = usePublicNav();
@@ -100,8 +107,7 @@ export function PublicView() {
     return coursesQuery.data.filter((c) => {
       const matchesSearch =
         !q ||
-        c.title.toLowerCase().includes(q) ||
-        (c.description?.toLowerCase().includes(q) ?? false);
+        c.title.toLowerCase().includes(q);
       const matchesGroup =
         selectedGroupIds.size === 0 || (!!c.groupId && selectedGroupIds.has(c.groupId));
       return matchesSearch && matchesGroup;
@@ -160,9 +166,6 @@ export function PublicView() {
         />
         <div>
           <h1 className="text-2xl font-bold tracking-tight" style={{ color: courseAccent(labQuery.data.course) }}>{labQuery.data.title}</h1>
-          {labQuery.data.description && (
-            <p className="mt-1 text-muted-foreground">{labQuery.data.description}</p>
-          )}
         </div>
         {labQuery.data.modules.length === 0 ? (
           <EmptyState
@@ -171,7 +174,7 @@ export function PublicView() {
             description="This lab has no modules. Ask an admin to add some."
           />
         ) : (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {labQuery.data.modules.map((m, i) => (
               <ModuleCard
                 key={m.id}
@@ -212,9 +215,6 @@ export function PublicView() {
           </div>
           <div>
             <h1 className="text-2xl font-bold tracking-tight">{courseQuery.data.title}</h1>
-            {courseQuery.data.description && (
-              <p className="mt-0.5 text-sm text-muted-foreground">{courseQuery.data.description}</p>
-            )}
           </div>
         </div>
         {courseQuery.data.labs.length === 0 ? (
@@ -224,7 +224,7 @@ export function PublicView() {
             description="This course has no labs."
           />
         ) : (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {courseQuery.data.labs.map((lab, i) => (
               <LabCard
                 key={lab.id}
@@ -357,6 +357,20 @@ function AccentGlow({ color }: { color: string }) {
   );
 }
 
+// Hover "moving border" — a colored blob that orbits the card's 4 quadrants
+// when the card is hovered, creating a moving border of light behind the
+// frosted-glass surface. Adapted from Uiverse.io (dylanharriscameron):
+// design outline only, sizes kept independent of the reference.
+function HoverBlob({ color }: { color: string }) {
+  return (
+    <div
+      aria-hidden
+      className="blob-border pointer-events-none absolute left-1/2 top-1/2 z-0 h-40 w-40 blur-2xl"
+      style={{ backgroundColor: color }}
+    />
+  );
+}
+
 function CourseCard({
   course,
   index,
@@ -369,15 +383,13 @@ function CourseCard({
   const color = courseAccent(course);
   return (
     <Card
-      className={cn(
-        "group cursor-pointer p-0 transition-all hover:shadow-xl hover:-translate-y-0.5",
-        GLASS_CARD
-      )}
-      onClick={onClick}
+      className={cn(CARD_OUTER, "p-0", course.locked && "cursor-not-allowed")}
+      onClick={() => !course.locked && onClick()}
     >
-      <div className="relative z-10 h-2 w-full" style={{ background: color }} />
-      <AccentGlow color={color} />
-      <div className="relative z-10 p-5">
+      <HoverBlob color={color} />
+      <div className={cn(GLASS_FACE)}>
+        <AccentGlow color={color} />
+        <div className="relative z-10 p-5">
         <div className="mb-3 flex items-center justify-between gap-2">
           <div
             className="flex h-12 w-12 items-center justify-center rounded-xl text-2xl"
@@ -390,17 +402,22 @@ function CourseCard({
         <h3 className="text-lg font-semibold leading-tight group-hover:text-primary">
           {course.title}
         </h3>
-        {course.description && (
-          <p className="mt-1.5 line-clamp-2 text-sm text-muted-foreground">{course.description}</p>
-        )}
         <div className="mt-4 flex items-center justify-between">
           <span className="text-xs font-medium text-muted-foreground">
             {(course._count?.labs ?? 0)} labs
           </span>
-          <div className="flex items-center gap-1.5 text-sm font-medium" style={{ color }}>
-            Open course
-            <ChevronRight className="h-4 w-4 transition group-hover:translate-x-0.5" />
-          </div>
+          {course.locked ? (
+            <div className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
+              Course locked
+              <Lock className="h-4 w-4" />
+            </div>
+          ) : (
+            <div className="flex items-center gap-1.5 text-sm font-medium" style={{ color }}>
+              Open course
+              <ChevronRight className="h-4 w-4 transition group-hover:translate-x-0.5" />
+            </div>
+          )}
+        </div>
         </div>
       </div>
     </Card>
@@ -431,28 +448,24 @@ function LabCard({
     : "Browse";
   return (
     <Card
-      className={cn(
-        "group cursor-pointer p-0 transition-all hover:shadow-xl hover:-translate-y-0.5",
-        GLASS_CARD
-      )}
-      onClick={onClick}
+      className={cn(CARD_OUTER, "p-0", lab.locked && "cursor-not-allowed")}
+      onClick={() => !lab.locked && onClick()}
       style={{ ["--accent" as string]: accent } as React.CSSProperties}
     >
-      <AccentGlow color={accent} />
-      <div className="relative z-10 p-5">
-        <div className="mb-3 flex items-center justify-between gap-2">
-          <div
-            className="flex h-11 w-11 items-center justify-center rounded-xl"
-            style={{ background: accent + "22", color: accent }}
-          >
-            <FlaskConical className="h-5 w-5" />
+      <HoverBlob color={accent} />
+      <div className={cn(GLASS_FACE)}>
+        <AccentGlow color={accent} />
+        <div className="relative z-10 p-5">
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <div
+              className="flex h-11 w-11 items-center justify-center rounded-xl"
+              style={{ background: accent + "22", color: accent }}
+            >
+              <FlaskConical className="h-5 w-5" />
+            </div>
+            <GroupBadge group={group} />
           </div>
-          <GroupBadge group={group} />
-        </div>
-        <h3 className="min-w-0 text-base font-semibold leading-tight transition-colors group-hover:text-[var(--accent)]">{lab.title}</h3>
-        {lab.description && (
-          <p className="mt-1.5 line-clamp-2 text-sm text-muted-foreground">{lab.description}</p>
-        )}
+          <h3 className="min-w-0 text-base font-semibold leading-tight transition-colors group-hover:text-[var(--accent)]">{lab.title}</h3>
         <div className="mt-4 flex items-center justify-between gap-2">
           <span className="text-xs font-medium text-muted-foreground">
             {(lab._count?.modules ?? 0)} modules
@@ -471,11 +484,19 @@ function LabCard({
                 {linkLabel}
               </a>
             )}
-            <span className="flex items-center gap-1.5 text-sm font-medium" style={{ color: accent }}>
-              Open lab
-              <ChevronRight className="h-4 w-4 transition group-hover:translate-x-0.5" />
-            </span>
+            {lab.locked ? (
+              <span className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
+                Lab locked
+                <Lock className="h-4 w-4" />
+              </span>
+            ) : (
+              <span className="flex items-center gap-1.5 text-sm font-medium" style={{ color: accent }}>
+                Open lab
+                <ChevronRight className="h-4 w-4 transition group-hover:translate-x-0.5" />
+              </span>
+            )}
           </div>
+        </div>
         </div>
       </div>
     </Card>
@@ -499,21 +520,20 @@ function ModuleCard({
   const slideCount = stepCount + 3; // title, overview, steps, output
   return (
     <Card
-      className={cn(
-        "group cursor-pointer p-0 transition-all hover:shadow-xl hover:-translate-y-0.5",
-        GLASS_CARD
-      )}
-      onClick={onClick}
+      className={cn(CARD_OUTER, "p-0", module.locked && "cursor-not-allowed")}
+      onClick={() => !module.locked && onClick()}
       style={{ ["--accent" as string]: accent } as React.CSSProperties}
     >
-      <AccentGlow color={accent} />
-      <div className="relative z-10 p-5">
-        <div className="mb-3 flex items-center justify-between gap-2">
-          <div
-            className="flex h-11 w-11 items-center justify-center rounded-xl"
-            style={{ background: accent + "22", color: accent }}
-          >
-            <Presentation className="h-5 w-5" />
+      <HoverBlob color={accent} />
+      <div className={cn(GLASS_FACE)}>
+        <AccentGlow color={accent} />
+        <div className="relative z-10 p-5">
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <div
+              className="flex h-11 w-11 items-center justify-center rounded-xl"
+              style={{ background: accent + "22", color: accent }}
+            >
+              <Presentation className="h-5 w-5" />
           </div>
           <GroupBadge group={group} />
         </div>
@@ -527,10 +547,18 @@ function ModuleCard({
           <span className="rounded-full bg-muted/70 px-2 py-0.5 text-xs font-medium text-muted-foreground backdrop-blur-sm">
             {slideCount} slides
           </span>
-          <div className="flex items-center gap-1.5 text-sm font-medium" style={{ color: accent }}>
-            <Play /> Present slides
-            <ChevronRight className="h-4 w-4 transition group-hover:translate-x-0.5" />
-          </div>
+          {module.locked ? (
+            <div className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
+              Slides locked
+              <Lock className="h-4 w-4" />
+            </div>
+          ) : (
+            <div className="flex items-center gap-1.5 text-sm font-medium" style={{ color: accent }}>
+              <Play /> Present slides
+              <ChevronRight className="h-4 w-4 transition group-hover:translate-x-0.5" />
+            </div>
+          )}
+        </div>
         </div>
       </div>
     </Card>
@@ -599,7 +627,7 @@ function SearchFilterToolbar({
           <Input
             value={search}
             onChange={(e) => onSearchChange(e.target.value)}
-            placeholder="Search courses by title or description…"
+            placeholder="Search courses by title…"
             className="h-10 pl-9 pr-9"
           />
           {search && (

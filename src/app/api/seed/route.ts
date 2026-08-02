@@ -13,8 +13,6 @@ export async function POST() {
   const course = await db.course.create({
     data: {
       title: "Data Structures & Algorithms",
-      description:
-        "A hands-on lab series covering core data structures, algorithms, and their analysis.",
       icon: "🧪",
       color: "#0d9488",
       order: 0,
@@ -25,8 +23,6 @@ export async function POST() {
     data: {
       courseId: course.id,
       title: "Lab 1: Linked Lists & Stacks",
-      description:
-        "Implement a singly linked list and build a stack on top of it. Analyze time complexity for each operation.",
       order: 0,
     },
   });

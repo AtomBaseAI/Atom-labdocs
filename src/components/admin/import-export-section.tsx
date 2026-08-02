@@ -74,7 +74,7 @@ function triggerDownload(res: Response) {
 
 // ===================== Main Section =====================
 
-export function ImportExportSection() {
+export function ImportExportSection({ embedded = false }: { embedded?: boolean } = {}) {
   const qc = useQueryClient();
   const [exportOpen, setExportOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
@@ -109,12 +109,8 @@ export function ImportExportSection() {
     },
   });
 
-  return (
-    <Card className="p-5">
-      <div className="mb-3 flex items-center gap-2">
-        <Database className="h-4 w-4 text-primary" />
-        <h2 className="text-sm font-semibold">Import / Export Content</h2>
-      </div>
+  const body = (
+    <>
       <p className="mb-4 text-xs text-muted-foreground">
         Export or import your lab documentation content. Use <span className="font-medium text-foreground">Export All</span> /{" "}
         <span className="font-medium text-foreground">Import All</span> for quick bulk operations, or use{" "}
@@ -171,6 +167,20 @@ export function ImportExportSection() {
 
       {/* Import Selected Dialog */}
       <ImportSelectDialog open={importOpen} onOpenChange={setImportOpen} queryClient={qc} />
+    </>
+  );
+
+  if (embedded) {
+    return body;
+  }
+
+  return (
+    <Card className="p-5">
+      <div className="mb-3 flex items-center gap-2">
+        <Database className="h-4 w-4 text-primary" />
+        <h2 className="text-sm font-semibold">Import / Export Content</h2>
+      </div>
+      {body}
     </Card>
   );
 }

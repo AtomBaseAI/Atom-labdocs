@@ -13,7 +13,10 @@ export async function GET(req: NextRequest) {
       ...(includeHidden ? {} : { hidden: false }),
     },
     orderBy: { order: "asc" },
-    include: { _count: { select: { modules: true } } },
+    include: {
+      _count: { select: { modules: true } },
+      course: { select: { id: true, title: true } },
+    },
   });
   return NextResponse.json(labs);
 }
@@ -23,7 +26,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   const body = await req.json();
-  const { title, description, courseId, linkType, linkUrl } = body;
+  const { title, courseId, linkType, linkUrl } = body;
   if (!title || !title.trim()) {
     return NextResponse.json({ error: "Title is required" }, { status: 400 });
   }
@@ -35,7 +38,6 @@ export async function POST(req: NextRequest) {
   const lab = await db.lab.create({
     data: {
       title: title.trim(),
-      description: description ?? null,
       courseId,
       order: (maxOrder._max.order ?? -1) + 1,
       linkType: link.linkType,

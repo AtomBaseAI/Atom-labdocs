@@ -27,12 +27,11 @@ export async function PUT(
   }
   const { id } = await params;
   const body = await req.json();
-  const { name, description, icon, color, order } = body;
+  const { name, icon, color, order } = body;
   const group = await db.courseGroup.update({
     where: { id },
     data: {
       ...(name !== undefined && { name: name.trim() }),
-      ...(description !== undefined && { description }),
       ...(icon !== undefined && { icon }),
       ...(color !== undefined && { color }),
       ...(order !== undefined && { order }),

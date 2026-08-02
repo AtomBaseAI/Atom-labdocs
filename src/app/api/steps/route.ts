@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   const body = await req.json();
-  const { title, description, code, codeLang, snippets, image, imageFileId, imageCaption, moduleId } = body;
+  const { title, description, code, codeLang, snippets, blocks, image, imageFileId, imageCaption, moduleId } = body;
   if (!title || !title.trim()) {
     return NextResponse.json({ error: "Title is required" }, { status: 400 });
   }
@@ -31,6 +31,7 @@ export async function POST(req: NextRequest) {
       code: code ?? null,
       codeLang: codeLang ?? null,
       snippets: snippets ?? null,
+      blocks: blocks ?? null,
       image: image ?? null,
       imageFileId: imageFileId ?? null,
       imageCaption: imageCaption ?? null,

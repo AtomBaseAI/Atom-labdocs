@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
@@ -49,8 +48,8 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { ModuleEditor } from "@/components/admin/module-editor";
-import { VisibilityToggle } from "@/components/admin/visibility-toggle";
-import { CourseGroupsSection } from "@/components/admin/course-groups-section";
+import { EyeToggle, LockToggle } from "@/components/admin/visibility-toggle";
+import { CourseGroupsSection, CreateGroupDialog } from "@/components/admin/course-groups-section";
 import {
   ImportExportSection,
   ExportCourseButton,
@@ -78,7 +77,6 @@ import {
   Layers,
   Layers2,
   MoreVertical,
-  FolderPlus,
   GripVertical,
   Play,
   FileArchive,
@@ -86,6 +84,8 @@ import {
   Globe,
   ArrowRightLeft,
   FileDown,
+  Database,
+  Home,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -101,6 +101,17 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+
+/* Frosted-glass surface for admin dashboard cards.
+   Uses Tailwind utilities (not a custom CSS class) so backdrop-filter
+   survives Lightning CSS minification. Sharp edges preserved by the
+   global border-radius:0 !important rule. */
+const GLASS_CARD =
+  "border border-white/50 dark:border-white/10 " +
+  "bg-gradient-to-br from-white/65 to-white/40 dark:from-white/10 dark:to-white/[0.03] " +
+  "backdrop-blur-xl backdrop-saturate-150 " +
+  "shadow-[inset_0_1px_0_0_rgba(255,255,255,0.6),0_8px_30px_-8px_rgba(0,0,0,0.12)] " +
+  "dark:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.08),0_8px_30px_-8px_rgba(0,0,0,0.5)]";
 
 async function fetchJson<T>(url: string): Promise<T> {
   const res = await fetch(url);
@@ -182,9 +193,25 @@ export function AdminView() {
       <aside className="lg:sticky lg:top-20 lg:h-[calc(100vh-7rem)]">
         <Card className="flex h-full max-h-[60vh] flex-col p-0 lg:max-h-none">
           <div className="flex items-center justify-between border-b px-3 py-2.5">
-            <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              Content Tree
-            </span>
+            <div className="flex items-center gap-1">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7"
+                title="Go to dashboard"
+                aria-label="Go to dashboard"
+                onClick={() => {
+                  setAdminCourse(null);
+                  setAdminLab(null);
+                  setAdminModule(null);
+                }}
+              >
+                <Home className="h-4 w-4" />
+              </Button>
+              <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Content Tree
+              </span>
+            </div>
             <CreateCourseDialog compact />
           </div>
           <ScrollArea className="flex-1">
@@ -415,10 +442,16 @@ function CourseTreeItem({
                 Hidden
               </span>
             )}
+            {course.locked && (
+              <span className="shrink-0 rounded bg-amber-500/15 px-1.5 py-0.5 text-[9px] font-semibold uppercase text-amber-700 dark:text-amber-400">
+                Locked
+              </span>
+            )}
           </button>
         </CollapsibleTrigger>
-        <div className="flex shrink-0 items-center opacity-0 transition group-hover:opacity-100">
-          <VisibilityToggle kind="course" id={course.id} hidden={course.hidden} />
+        <div className="flex shrink-0 items-center gap-0.5 opacity-0 transition group-hover:opacity-100">
+          <EyeToggle kind="course" id={course.id} hidden={course.hidden} />
+          <LockToggle kind="course" id={course.id} locked={course.locked} />
           <EditCourseDialog course={course} compact />
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -477,6 +510,11 @@ function CourseTreeItem({
                             Hidden
                           </span>
                         )}
+                        {lab.locked && (
+                          <span className="shrink-0 rounded bg-amber-500/15 px-1 py-0.5 text-[9px] font-semibold uppercase text-amber-700 dark:text-amber-400">
+                            Locked
+                          </span>
+                        )}
                       </button>
                     </CollapsibleTrigger>
                   </div>
@@ -498,6 +536,11 @@ function CourseTreeItem({
                             {m.hidden && (
                               <span className="shrink-0 rounded bg-amber-500/15 px-1 py-0.5 text-[9px] font-semibold uppercase text-amber-700 dark:text-amber-400">
                                 Hidden
+                              </span>
+                            )}
+                            {m.locked && (
+                              <span className="shrink-0 rounded bg-amber-500/15 px-1 py-0.5 text-[9px] font-semibold uppercase text-amber-700 dark:text-amber-400">
+                                Locked
                               </span>
                             )}
                           </button>
@@ -615,93 +658,127 @@ function OverviewPanel({
       (c.labs?.reduce((a, l) => a + (l._count?.modules ?? 0), 0) ?? 0),
     0
   );
+  const groupsQuery = useCourseGroups();
+  const totalGroups = groupsQuery.data?.length ?? 0;
 
   return (
     <div className="space-y-5">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Admin Dashboard</h1>
-        <p className="text-sm text-muted-foreground">
-          Manage your lab documentation. Select a course from the tree, or create a new one.
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h1 className="text-2xl font-bold tracking-tight">Admin Dashboard</h1>
+          <p className="text-sm text-muted-foreground">
+            Manage your lab documentation. Select a course from the tree, or create a new one.
+          </p>
+        </div>
+        <div className="flex shrink-0 flex-wrap items-center gap-2">
+          <CreateCourseDialog />
+          <CreateGroupDialog />
+        </div>
       </div>
 
       {/* Stats */}
-      <div className="grid gap-3 sm:grid-cols-3">
-        <StatCard icon={BookOpen} label="Courses" value={courses.length} color="text-teal-600" />
-        <StatCard icon={FlaskConical} label="Labs" value={totalLabs} color="text-violet-600" />
-        <StatCard icon={Presentation} label="Modules" value={totalModules} color="text-amber-600" />
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <StatCard icon={BookOpen} label="Courses" value={courses.length} color="text-teal-600" tint="oklch(0.77 0.13 180 / 0.45)" />
+        <StatCard icon={FlaskConical} label="Labs" value={totalLabs} color="text-violet-600" tint="oklch(0.62 0.19 300 / 0.40)" />
+        <StatCard icon={Presentation} label="Modules" value={totalModules} color="text-amber-600" tint="oklch(0.78 0.16 70 / 0.45)" />
+        <StatCard icon={Layers2} label="Course Groups" value={totalGroups} color="text-rose-600" tint="oklch(0.65 0.22 15 / 0.45)" />
       </div>
 
-      {/* Quick actions */}
-      <Card className="p-5">
-        <div className="mb-3 flex items-center gap-2">
-          <FolderPlus className="h-4 w-4 text-primary" />
-          <h2 className="text-sm font-semibold">Quick Actions</h2>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <CreateCourseDialog />
-        </div>
-      </Card>
-
-      {/* Import / Export content */}
-      <ImportExportSection />
-
-      {/* Course groups */}
-      <CourseGroupsSection />
-
-      {/* Courses list */}
-      <Card className="p-5">
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-sm font-semibold">All Courses</h2>
-        </div>
-        {loading ? (
-          <div className="space-y-2">
-            {[...Array(2)].map((_, i) => (
-              <Skeleton key={i} className="h-14 w-full" />
-            ))}
-          </div>
-        ) : courses.length === 0 ? (
-          <p className="py-6 text-center text-sm text-muted-foreground">
-            No courses yet. Create your first course to get started.
-          </p>
-        ) : (
-          <div className="space-y-2">
-            {courses.map((c) => (
-              <div
-                key={c.id}
-                className="flex w-full items-center gap-3 rounded-lg border p-3 transition hover:border-primary/40 hover:bg-muted/30"
-              >
-                <button
-                  onClick={() => onSelectCourse(c.id)}
-                  className="flex min-w-0 flex-1 items-center gap-3 text-left"
-                >
-                  <span
-                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg"
-                    style={{ background: courseAccent(c) + "22", color: courseAccent(c) }}
-                  >
-                    <BookText className="h-4 w-4" />
-                  </span>
-                  <div className="min-w-0">
-                    <p className="flex items-center gap-1.5">
-                      <span className="truncate text-sm font-medium">{c.title}</span>
-                      {c.hidden && (
-                        <span className="shrink-0 rounded bg-amber-500/15 px-1.5 py-0.5 text-[9px] font-semibold uppercase text-amber-700 dark:text-amber-400">
-                          Hidden
-                        </span>
-                      )}
-                    </p>
-                    <p className="truncate text-xs text-muted-foreground">
-                      {c._count?.labs ?? 0} labs
-                    </p>
-                  </div>
-                </button>
-                <VisibilityToggle kind="course" id={c.id} hidden={c.hidden} />
-                <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+      {/* Collapsible admin sections — All Courses open by default, then Course Groups, then Import/Export */}
+      <Accordion type="single" collapsible defaultValue="courses" className="space-y-3">
+        {/* 1. All courses — open by default */}
+        <AccordionItem value="courses" className="border bg-card px-5 last:border-b">
+          <AccordionTrigger className="hover:no-underline py-4">
+            <div className="flex items-center gap-2">
+              <BookOpen className="h-4 w-4 text-primary" />
+              <span className="text-sm font-semibold">All Courses</span>
+              <span className="text-xs text-muted-foreground">({courses.length})</span>
+            </div>
+          </AccordionTrigger>
+          <AccordionContent>
+            {loading ? (
+              <div className="space-y-2">
+                {[...Array(2)].map((_, i) => (
+                  <Skeleton key={i} className="h-14 w-full" />
+                ))}
               </div>
-            ))}
-          </div>
-        )}
-      </Card>
+            ) : courses.length === 0 ? (
+              <p className="py-6 text-center text-sm text-muted-foreground">
+                No courses yet. Create your first course to get started.
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {courses.map((c) => (
+                  <div
+                    key={c.id}
+                    className="flex w-full items-center gap-3 border p-3 transition hover:border-primary/40 hover:bg-muted/30"
+                  >
+                    <button
+                      onClick={() => onSelectCourse(c.id)}
+                      className="flex min-w-0 flex-1 items-center gap-3 text-left"
+                    >
+                      <span
+                        className="flex h-9 w-9 shrink-0 items-center justify-center"
+                        style={{ background: courseAccent(c) + "22", color: courseAccent(c) }}
+                      >
+                        <BookText className="h-4 w-4" />
+                      </span>
+                      <div className="min-w-0">
+                        <p className="flex items-center gap-1.5">
+                          <span className="truncate text-sm font-medium">{c.title}</span>
+                          {c.hidden && (
+                            <span className="shrink-0 bg-amber-500/15 px-1.5 py-0.5 text-[9px] font-semibold uppercase text-amber-700 dark:text-amber-400">
+                              Hidden
+                            </span>
+                          )}
+                          {c.locked && (
+                            <span className="shrink-0 bg-amber-500/15 px-1.5 py-0.5 text-[9px] font-semibold uppercase text-amber-700 dark:text-amber-400">
+                              Locked
+                            </span>
+                          )}
+                        </p>
+                        <p className="truncate text-xs text-muted-foreground">
+                          {c._count?.labs ?? 0} labs
+                        </p>
+                      </div>
+                    </button>
+                    <EyeToggle kind="course" id={c.id} hidden={c.hidden} />
+                    <LockToggle kind="course" id={c.id} locked={c.locked} />
+                    <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+                  </div>
+                ))}
+              </div>
+            )}
+          </AccordionContent>
+        </AccordionItem>
+
+        {/* 2. Course groups */}
+        <AccordionItem value="groups" className="border bg-card px-5 last:border-b">
+          <AccordionTrigger className="hover:no-underline py-4">
+            <div className="flex items-center gap-2">
+              <Layers2 className="h-4 w-4 text-primary" />
+              <span className="text-sm font-semibold">Course Groups</span>
+              <span className="text-xs text-muted-foreground">({totalGroups})</span>
+            </div>
+          </AccordionTrigger>
+          <AccordionContent>
+            <CourseGroupsSection embedded />
+          </AccordionContent>
+        </AccordionItem>
+
+        {/* 3. Import / Export content */}
+        <AccordionItem value="import-export" className="border bg-card px-5 last:border-b">
+          <AccordionTrigger className="hover:no-underline py-4">
+            <div className="flex items-center gap-2">
+              <Database className="h-4 w-4 text-primary" />
+              <span className="text-sm font-semibold">Import / Export Content</span>
+            </div>
+          </AccordionTrigger>
+          <AccordionContent>
+            <ImportExportSection embedded />
+          </AccordionContent>
+        </AccordionItem>
+      </Accordion>
     </div>
   );
 }
@@ -711,22 +788,37 @@ function StatCard({
   label,
   value,
   color,
+  tint,
 }: {
   icon: typeof BookOpen;
   label: string;
   value: number | string;
   color: string;
+  tint: string;
 }) {
   return (
-    <Card className="flex items-center gap-3 p-4">
-      <div className={cn("flex h-10 w-10 items-center justify-center rounded-lg bg-muted", color)}>
+    <div
+      className={cn(
+        GLASS_CARD,
+        "relative flex items-center justify-between gap-3 overflow-hidden p-4"
+      )}
+    >
+      {/* Colored glow inside the card so the frosted glass has something to blur */}
+      <span
+        aria-hidden
+        className="pointer-events-none absolute -right-6 -top-8 h-24 w-24 blur-2xl"
+        style={{ background: tint }}
+      />
+      {/* Left: icon only */}
+      <div className={cn("relative flex h-11 w-11 items-center justify-center bg-muted/60", color)}>
         <Icon className="h-5 w-5" />
       </div>
-      <div>
-        <p className="text-2xl font-bold leading-none">{value}</p>
+      {/* Right: data (value + label), right-aligned */}
+      <div className="relative text-right">
+        <p className="text-2xl font-bold leading-none tabular-nums">{value}</p>
         <p className="mt-0.5 text-xs text-muted-foreground">{label}</p>
       </div>
-    </Card>
+    </div>
   );
 }
 
@@ -755,9 +847,6 @@ function CoursePanel({
         </span>
         <div className="min-w-0 flex-1">
           <h1 className="text-2xl font-bold tracking-tight">{course.title}</h1>
-          {course.description && (
-            <p className="mt-0.5 text-sm text-muted-foreground">{course.description}</p>
-          )}
         </div>
         <div className="flex shrink-0 flex-wrap items-center gap-2">
           <EditCourseDialog course={course} />
@@ -819,9 +908,6 @@ function LabPanel({
         </div>
         <div className="min-w-0 flex-1">
           <h1 className="text-2xl font-bold tracking-tight" style={{ color: courseAccent(lab.course) }}>{lab.title}</h1>
-          {lab.description && (
-            <p className="mt-0.5 text-sm text-muted-foreground">{lab.description}</p>
-          )}
         </div>
         <div className="flex shrink-0 flex-wrap items-center gap-2">
           <EditLabDialog lab={lab} />
@@ -976,7 +1062,6 @@ function AddLabDialog({ courseId }: { courseId: string }) {
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
   const [linkType, setLinkType] = useState<LabLinkType>("none");
   const [linkUrl, setLinkUrl] = useState("");
   const mut = useMutation({
@@ -984,7 +1069,7 @@ function AddLabDialog({ courseId }: { courseId: string }) {
       fetch("/api/labs", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title, description, courseId, linkType, linkUrl }),
+        body: JSON.stringify({ title, courseId, linkType, linkUrl }),
       }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["admin-course-nested", courseId] });
@@ -992,7 +1077,6 @@ function AddLabDialog({ courseId }: { courseId: string }) {
       qc.invalidateQueries({ queryKey: ["course", courseId] });
       toast({ title: "Lab added", description: title.trim() });
       setTitle("");
-      setDescription("");
       setLinkType("none");
       setLinkUrl("");
       setOpen(false);
@@ -1028,14 +1112,6 @@ function AddLabDialog({ courseId }: { courseId: string }) {
               onChange={(e) => setTitle(e.target.value)}
               placeholder="Lab title (e.g. Lab 2: Queues)"
               autoFocus
-            />
-          </div>
-          <div>
-            <Label>Description</Label>
-            <Textarea
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Short description (optional)"
             />
           </div>
           <LabLinkFields
@@ -1284,12 +1360,15 @@ function SortableLabRow({
                 Hidden
               </span>
             )}
-          </p>
-          <p className="truncate text-xs text-muted-foreground">
-            {lab.description || "No description"}
+            {lab.locked && (
+              <span className="shrink-0 rounded bg-amber-500/15 px-1.5 py-0.5 text-[9px] font-semibold uppercase text-amber-700 dark:text-amber-400">
+                Locked
+              </span>
+            )}
           </p>
         </div>
-        <VisibilityToggle kind="lab" id={lab.id} hidden={lab.hidden} />
+        <EyeToggle kind="lab" id={lab.id} hidden={lab.hidden} />
+        <LockToggle kind="lab" id={lab.id} locked={lab.locked} />
       </div>
       <div className="text-center">
         <span className="inline-flex min-w-[28px] justify-center rounded-full bg-muted px-2 py-0.5 text-xs font-medium">
@@ -1432,6 +1511,8 @@ function ModulesTable({
                   index={i}
                   accent={accent}
                   onOpen={() => onSelectModule(m.id)}
+                  currentLabId={lab.id}
+                  currentLabTitle={lab.title}
                 />
               ))}
             </SortableContext>
@@ -1447,11 +1528,15 @@ function SortableModuleRow({
   index,
   accent,
   onOpen,
+  currentLabId,
+  currentLabTitle,
 }: {
   module: Module;
   index: number;
   accent: string;
   onOpen: () => void;
+  currentLabId: string;
+  currentLabTitle: string;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: module.id,
@@ -1496,10 +1581,16 @@ function SortableModuleRow({
                 Hidden
               </span>
             )}
+            {module.locked && (
+              <span className="shrink-0 rounded bg-amber-500/15 px-1.5 py-0.5 text-[9px] font-semibold uppercase text-amber-700 dark:text-amber-400">
+                Locked
+              </span>
+            )}
           </p>
           <p className="truncate text-xs text-muted-foreground">Module {index + 1}</p>
         </div>
-        <VisibilityToggle kind="module" id={module.id} hidden={module.hidden} />
+        <EyeToggle kind="module" id={module.id} hidden={module.hidden} />
+        <LockToggle kind="module" id={module.id} locked={module.locked} />
       </div>
       <div className="text-center">
         <span className="inline-flex min-w-[28px] justify-center rounded-full bg-muted px-2 py-0.5 text-xs font-medium">
@@ -1511,7 +1602,11 @@ function SortableModuleRow({
         <DownloadPdfButton moduleId={module.id} />
       </div>
       <div className="flex justify-center">
-        <MoveModuleDialog moduleId={module.id} currentLabTitle={module.labId} />
+        <MoveModuleDialog
+          moduleId={module.id}
+          currentLabId={currentLabId}
+          currentLabTitle={currentLabTitle}
+        />
       </div>
       <div className="flex justify-center">
         <Button
@@ -1649,14 +1744,13 @@ function CreateCourseDialog({ compact }: { compact?: boolean }) {
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
   const [groupId, setGroupId] = useState("none");
   const mut = useMutation({
     mutationFn: () =>
       fetch("/api/courses", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title, description, groupId: groupId === "none" ? null : groupId }),
+        body: JSON.stringify({ title, groupId: groupId === "none" ? null : groupId }),
       }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["admin-courses"] });
@@ -1664,7 +1758,6 @@ function CreateCourseDialog({ compact }: { compact?: boolean }) {
       toast({ title: "Course created" });
       setOpen(false);
       setTitle("");
-      setDescription("");
       setGroupId("none");
     },
     onError: () => {
@@ -1697,10 +1790,6 @@ function CreateCourseDialog({ compact }: { compact?: boolean }) {
             <Label>Title</Label>
             <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Data Structures" />
           </div>
-          <div>
-            <Label>Description</Label>
-            <Textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Short description" />
-          </div>
           <p className="rounded-md border border-dashed bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
             The accent color is inherited from the selected course group. Assign a group above to color this course.
           </p>
@@ -1720,12 +1809,10 @@ function EditCourseDialog({ course, compact, asItem }: { course: Course; compact
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState(course.title);
-  const [description, setDescription] = useState(course.description ?? "");
   const [groupId, setGroupId] = useState(course.groupId ?? "none");
 
   useEffectReset(() => {
     setTitle(course.title);
-    setDescription(course.description ?? "");
     setGroupId(course.groupId ?? "none");
   }, [course, open]);
 
@@ -1734,7 +1821,7 @@ function EditCourseDialog({ course, compact, asItem }: { course: Course; compact
       fetch("/api/courses/" + course.id, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title, description, groupId: groupId === "none" ? null : groupId }),
+        body: JSON.stringify({ title, groupId: groupId === "none" ? null : groupId }),
       }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["admin-courses"] });
@@ -1779,10 +1866,6 @@ function EditCourseDialog({ course, compact, asItem }: { course: Course; compact
             <Label>Title</Label>
             <Input value={title} onChange={(e) => setTitle(e.target.value)} />
           </div>
-          <div>
-            <Label>Description</Label>
-            <Textarea value={description} onChange={(e) => setDescription(e.target.value)} />
-          </div>
           <p className="rounded-md border border-dashed bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
             The accent color is inherited from the selected course group. Assign a group above to color this course.
           </p>
@@ -1804,12 +1887,10 @@ function EditLabDialog({ lab, asItem, iconOnly }: { lab: Lab; asItem?: boolean; 
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState(lab.title);
-  const [description, setDescription] = useState(lab.description ?? "");
   const [linkType, setLinkType] = useState<LabLinkType>(lab.linkType ?? "none");
   const [linkUrl, setLinkUrl] = useState(lab.linkUrl ?? "");
   useEffectReset(() => {
     setTitle(lab.title);
-    setDescription(lab.description ?? "");
     setLinkType(lab.linkType ?? "none");
     setLinkUrl(lab.linkUrl ?? "");
   }, [lab, open]);
@@ -1818,7 +1899,7 @@ function EditLabDialog({ lab, asItem, iconOnly }: { lab: Lab; asItem?: boolean; 
       fetch("/api/labs/" + lab.id, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title, description, linkType, linkUrl }),
+        body: JSON.stringify({ title, linkType, linkUrl }),
       }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["admin-course-nested"] });
@@ -1859,10 +1940,6 @@ function EditLabDialog({ lab, asItem, iconOnly }: { lab: Lab; asItem?: boolean; 
           <div>
             <Label>Title</Label>
             <Input value={title} onChange={(e) => setTitle(e.target.value)} />
-          </div>
-          <div>
-            <Label>Description</Label>
-            <Textarea value={description} onChange={(e) => setDescription(e.target.value)} />
           </div>
           <LabLinkFields
             linkType={linkType}
@@ -1918,21 +1995,44 @@ function DownloadPdfButton({ moduleId }: { moduleId: string }) {
 
 // ===================== Move Dialogs =====================
 
-function MoveModuleDialog({ moduleId, currentLabTitle }: { moduleId: string; currentLabTitle: string }) {
+function MoveModuleDialog({
+  moduleId,
+  currentLabId,
+  currentLabTitle,
+}: {
+  moduleId: string;
+  currentLabId: string;
+  currentLabTitle: string;
+}) {
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [targetLabId, setTargetLabId] = useState("");
 
-  // Fetch all labs for the move target dropdown
-  const coursesQuery = useQuery({
-    queryKey: ["admin-courses-move"],
-    queryFn: () => fetchJson<CourseTree[]>("/api/courses?admin=1"),
+  // Fetch all labs (with their course title) for the move target dropdown.
+  // We use /api/labs?admin=1 which includes the `course` relation so we can
+  // build "Course → Lab" labels. The previous implementation fetched
+  // /api/courses?admin=1, but that endpoint only returns labs with a `_count`
+  // field (no id/title), which caused "undefined" labels and duplicate keys.
+  const labsQuery = useQuery({
+    queryKey: ["admin-labs-move"],
+    queryFn: () =>
+      fetchJson<(Lab & { course: { id: string; title: string } })[]>(
+        "/api/labs?admin=1"
+      ),
     enabled: open,
   });
 
-  const labsList = coursesQuery.data?.flatMap((c) =>
-    c.labs.map((l) => ({ id: l.id, label: `${c.title} → ${l.title}`, courseId: c.id }))
-  ) ?? [];
+  // Build the target list: "Course → Lab", excluding the current lab so the
+  // user can't move a module to the lab it's already in.
+  const labsList =
+    labsQuery.data
+      ?.filter((l) => l.id !== currentLabId)
+      .map((l) => ({
+        id: l.id,
+        label: `${l.course.title} → ${l.title}`,
+        courseId: l.course.id,
+      }))
+      .sort((a, b) => a.label.localeCompare(b.label)) ?? [];
 
   const moveMut = useMutation({
     mutationFn: async () => {
@@ -1979,6 +2079,10 @@ function MoveModuleDialog({ moduleId, currentLabTitle }: { moduleId: string; cur
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2">
+            <div className="rounded-lg border bg-muted/30 px-3 py-2 text-xs">
+              <span className="text-muted-foreground">Current lab: </span>
+              <span className="font-medium text-foreground">{currentLabTitle}</span>
+            </div>
             <div>
               <Label>Target Lab</Label>
               <Select value={targetLabId} onValueChange={setTargetLabId}>
@@ -1987,12 +2091,17 @@ function MoveModuleDialog({ moduleId, currentLabTitle }: { moduleId: string; cur
                 </SelectTrigger>
                 <SelectContent>
                   {labsList.map((l) => (
-                    <SelectItem key={`${l.courseId}-${l.id}`} value={l.id} className="text-xs">
+                    <SelectItem key={l.id} value={l.id} className="text-xs">
                       {l.label}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
+              {labsList.length === 0 && !labsQuery.isLoading && (
+                <p className="mt-2 text-xs text-muted-foreground">
+                  No other labs available. Create another lab first.
+                </p>
+              )}
             </div>
           </div>
           <DialogFooter>

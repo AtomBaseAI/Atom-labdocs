@@ -14,7 +14,6 @@ datasource db {
 model CourseGroup {
   id          String   @id @default(cuid())
   name        String
-  description String?
   icon        String? // emoji icon
   color       String? // accent color
   order       Int      @default(0)
@@ -31,11 +30,11 @@ model Course {
   groupId     String?  @map("group_id")
   group       CourseGroup? @relation(fields: [groupId], references: [id], onDelete: SetNull)
   title       String
-  description String?
   icon        String? // emoji icon
   color       String? // accent color (tailwind-ish hex)
   order       Int      @default(0)
-  hidden      Boolean  @default(false) // hide from public view
+  hidden      Boolean  @default(false) // hide from public view entirely
+  locked      Boolean  @default(false) // visible in public but can't be opened
   labs        Lab[]
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
@@ -50,9 +49,9 @@ model Lab {
   courseId    String   @map("course_id")
   course      Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
   title       String
-  description String?
   order       Int      @default(0)
-  hidden      Boolean  @default(false) // hide from public view
+  hidden      Boolean  @default(false) // hide from public view entirely
+  locked      Boolean  @default(false) // visible in public but can't be opened
   // Link feature: "none" (default) | "download" | "watch"
   linkType    String   @default("none") @map("link_type")
   linkUrl     String?  @map("link_url")
@@ -83,7 +82,8 @@ model Module {
   outputImageFileId String? @map("output_image_file_id") // ImageKit fileId for deletion
   outputImageCaption String? @map("output_image_caption")
   order             Int      @default(0)
-  hidden      Boolean  @default(false) // hide from public view
+  hidden      Boolean  @default(false) // hide from public view entirely
+  locked      Boolean  @default(false) // visible in public but can't be opened
   steps       Step[]
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
@@ -103,7 +103,8 @@ model Step {
   image        String? // ImageKit CDN URL
   imageFileId  String? @map("image_file_id") // ImageKit fileId for deletion
   imageCaption String? @map("image_caption")
-  snippets     String? @map("snippets") // JSON array of CodeSnippet[]
+  snippets     String? @map("snippets") // JSON array of CodeSnippet[] (legacy, synced from blocks)
+  blocks       String? @map("blocks") // JSON array of StepBlock[] (unified content: descriptions, snippets, images in order)
   order        Int      @default(0)
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")

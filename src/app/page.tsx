@@ -9,6 +9,11 @@ import { AdminView } from "@/components/admin/admin-view";
 import { AdminLoginDialog } from "@/components/admin/admin-login-dialog";
 import { Button } from "@/components/ui/button";
 import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+} from "@/components/ui/dropdown-menu";
+import {
   Sparkles,
   FlaskRound,
   LayoutDashboard,
@@ -16,6 +21,8 @@ import {
   LogOut,
   ShieldCheck,
   Loader2,
+  ChevronDown,
+  UserRound,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
@@ -108,17 +115,43 @@ export default function Home() {
             )}
 
             {mode === "admin" && isAdmin && (
-              <div className="hidden items-center gap-1.5 rounded-lg border bg-emerald-500/10 px-2.5 py-1 text-xs font-medium text-emerald-700 dark:text-emerald-300 sm:flex">
-                <ShieldCheck className="h-3.5 w-3.5" />
-                {session.user?.email ?? "Admin"}
-              </div>
-            )}
-
-            {mode === "admin" && isAdmin && (
-              <Button variant="ghost" size="sm" className="gap-1.5" onClick={handleLogout}>
-                <LogOut className="h-4 w-4" />
-                <span className="hidden sm:inline">Logout</span>
-              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="gap-1.5">
+                    <ShieldCheck className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+                    <span>Admin</span>
+                    <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-72 p-0">
+                  <div className="grid grid-cols-[1fr_auto] divide-x divide-border">
+                    {/* Column 1: email */}
+                    <div className="flex min-w-0 items-center gap-2 px-3 py-2.5">
+                      <span className="flex h-8 w-8 shrink-0 items-center justify-center bg-emerald-500/10 text-emerald-700 dark:text-emerald-300">
+                        <UserRound className="h-4 w-4" />
+                      </span>
+                      <div className="min-w-0">
+                        <p className="truncate text-xs font-medium leading-tight">
+                          {session.user?.email ?? "Admin"}
+                        </p>
+                        <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                          Signed in
+                        </p>
+                      </div>
+                    </div>
+                    {/* Column 2: logout */}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="m-2 gap-1.5 self-center justify-self-end"
+                      onClick={handleLogout}
+                    >
+                      <LogOut className="h-4 w-4" />
+                      <span>Logout</span>
+                    </Button>
+                  </div>
+                </DropdownMenuContent>
+              </DropdownMenu>
             )}
 
             <div className="flex items-center rounded-lg border bg-muted/40 p-0.5">

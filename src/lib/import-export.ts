@@ -37,7 +37,6 @@ export const EXPORT_SOURCE = "atom-labdocs" as const;
 
 export type CourseGroupExport = {
   name: string;
-  description: string | null;
   icon: string | null;
   color: string | null;
   order: number;
@@ -49,6 +48,7 @@ export type StepExport = {
   code: string | null;
   codeLang: string | null;
   snippets: string | null; // JSON string of CodeSnippet[]
+  blocks: string | null; // JSON string of StepBlock[]
   image: string | null;
   imageFileId: string | null;
   imageCaption: string | null;
@@ -68,14 +68,15 @@ export type ModuleExport = {
   outputImageCaption: string | null;
   order: number;
   hidden: boolean;
+  locked: boolean;
   steps: StepExport[];
 };
 
 export type LabExport = {
   title: string;
-  description: string | null;
   order: number;
   hidden: boolean;
+  locked: boolean;
   linkType: string;
   linkUrl: string | null;
   modules: ModuleExport[];
@@ -83,11 +84,11 @@ export type LabExport = {
 
 export type CourseExport = {
   title: string;
-  description: string | null;
   icon: string | null;
   color: string | null;
   order: number;
   hidden: boolean;
+  locked: boolean;
   groupName: string | null;
   labs: LabExport[];
 };
@@ -129,7 +130,6 @@ export type ExportFile =
 export function serializeCourseGroup(
   g: {
     name: string;
-    description: string | null;
     icon: string | null;
     color: string | null;
     order: number;
@@ -137,7 +137,6 @@ export function serializeCourseGroup(
 ): CourseGroupExport {
   return {
     name: g.name,
-    description: g.description,
     icon: g.icon,
     color: g.color,
     order: g.order,
@@ -151,6 +150,7 @@ export function serializeStep(
     code: string | null;
     codeLang: string | null;
     snippets: string | null;
+    blocks: string | null;
     image: string | null;
     imageFileId: string | null;
     imageCaption: string | null;
@@ -163,6 +163,7 @@ export function serializeStep(
     code: s.code,
     codeLang: s.codeLang,
     snippets: s.snippets,
+    blocks: s.blocks,
     image: s.image,
     imageFileId: s.imageFileId,
     imageCaption: s.imageCaption,
@@ -184,6 +185,7 @@ export function serializeModule(
     outputImageCaption: string | null;
     order: number;
     hidden: boolean;
+    locked: boolean;
     steps: ReturnType<typeof serializeStep>[];
   }
 ): ModuleExport {
@@ -200,6 +202,7 @@ export function serializeModule(
     outputImageCaption: m.outputImageCaption,
     order: m.order,
     hidden: m.hidden,
+    locked: m.locked,
     steps: m.steps,
   };
 }
@@ -207,9 +210,9 @@ export function serializeModule(
 export function serializeLab(
   l: {
     title: string;
-    description: string | null;
     order: number;
     hidden: boolean;
+    locked: boolean;
     linkType: string;
     linkUrl: string | null;
     modules: ReturnType<typeof serializeModule>[];
@@ -217,9 +220,9 @@ export function serializeLab(
 ): LabExport {
   return {
     title: l.title,
-    description: l.description,
     order: l.order,
     hidden: l.hidden,
+    locked: l.locked,
     linkType: l.linkType,
     linkUrl: l.linkUrl,
     modules: l.modules,
@@ -229,22 +232,22 @@ export function serializeLab(
 export function serializeCourse(
   c: {
     title: string;
-    description: string | null;
     icon: string | null;
     color: string | null;
     order: number;
     hidden: boolean;
+    locked: boolean;
     labs: ReturnType<typeof serializeLab>[];
   },
   groupName: string | null
 ): CourseExport {
   return {
     title: c.title,
-    description: c.description,
     icon: c.icon,
     color: c.color,
     order: c.order,
     hidden: c.hidden,
+    locked: c.locked,
     groupName,
     labs: c.labs,
   };
@@ -281,6 +284,7 @@ export function parseStepExport(v: unknown, idx: number): StepExport | null {
     code: isStrOrNull(o.code) ? o.code : null,
     codeLang: isStrOrNull(o.codeLang) ? o.codeLang : null,
     snippets: isStrOrNull(o.snippets) ? o.snippets : null,
+    blocks: isStrOrNull(o.blocks) ? o.blocks : null,
     image: isStrOrNull(o.image) ? o.image : null,
     imageFileId: isStrOrNull(o.imageFileId) ? o.imageFileId : null,
     imageCaption: isStrOrNull(o.imageCaption) ? o.imageCaption : null,
@@ -311,6 +315,7 @@ export function parseModuleExport(v: unknown, idx: number): ModuleExport | null 
     outputImageCaption: isStrOrNull(o.outputImageCaption) ? o.outputImageCaption : null,
     order: isNum(o.order) ? o.order : idx,
     hidden: isBool(o.hidden) ? o.hidden : false,
+    locked: isBool(o.locked) ? o.locked : false,
     steps,
   };
 }
@@ -327,9 +332,9 @@ export function parseLabExport(v: unknown, idx: number): LabExport | null {
   }
   return {
     title: o.title.trim(),
-    description: isStrOrNull(o.description) ? o.description : null,
     order: isNum(o.order) ? o.order : idx,
     hidden: isBool(o.hidden) ? o.hidden : false,
+    locked: isBool(o.locked) ? o.locked : false,
     linkType: isStr(o.linkType) ? o.linkType : "none",
     linkUrl: isStrOrNull(o.linkUrl) ? o.linkUrl : null,
     modules,
@@ -348,11 +353,11 @@ export function parseCourseExport(v: unknown, idx: number): CourseExport | null 
   }
   return {
     title: o.title.trim(),
-    description: isStrOrNull(o.description) ? o.description : null,
     icon: isStrOrNull(o.icon) ? o.icon : null,
     color: isStrOrNull(o.color) ? o.color : null,
     order: isNum(o.order) ? o.order : idx,
     hidden: isBool(o.hidden) ? o.hidden : false,
+    locked: isBool(o.locked) ? o.locked : false,
     groupName: isStrOrNull(o.groupName) ? (o.groupName ? o.groupName.trim() || null : null) : null,
     labs,
   };
@@ -367,7 +372,6 @@ export function parseCourseGroupExport(
   if (!isStr(o.name)) return null;
   return {
     name: o.name.trim(),
-    description: isStrOrNull(o.description) ? o.description : null,
     icon: isStrOrNull(o.icon) ? o.icon : null,
     color: isStrOrNull(o.color) ? o.color : null,
     order: isNum(o.order) ? o.order : idx,
