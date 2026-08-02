@@ -91,7 +91,7 @@ export function SlideViewer({ module, courseTitle, labTitle, accent = "#0d9488" 
   return (
     <div
       className={cn(
-        "flex flex-col bg-card border rounded-2xl overflow-hidden shadow-sm",
+        "flex flex-col bg-card border rounded-2xl overflow-hidden shadow-sm ",
         fullscreen ? "fixed inset-0 z-50 rounded-none border-0" : ""
       )}
       style={{ ["--accent" as string]: accent } as React.CSSProperties}
@@ -109,7 +109,7 @@ export function SlideViewer({ module, courseTitle, labTitle, accent = "#0d9488" 
           <Button
             variant="ghost"
             size="icon"
-            className="h-8 w-8"
+            className="h-8 w-8 hover:text-white"
             onClick={() => setFullscreen((f) => !f)}
             title={fullscreen ? "Exit fullscreen (Esc)" : "Fullscreen (F)"}
           >
@@ -153,11 +153,11 @@ export function SlideViewer({ module, courseTitle, labTitle, accent = "#0d9488" 
         <Button
           variant="outline"
           size="sm"
-          className="gap-1.5"
+          className="gap-1.5 hover:text-white"
           onClick={() => go(-1)}
           disabled={index === 0}
         >
-          <ChevronLeft className="h-4 w-4" /> Prev
+          <ChevronLeft className="h-4 w-4 " /> Prev
         </Button>
 
         {/* Slide dots */}

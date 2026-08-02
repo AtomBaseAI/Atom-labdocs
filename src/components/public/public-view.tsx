@@ -328,8 +328,8 @@ export function PublicView() {
         ) : (
           <EmptyState
             icon={Search}
-            title="No matching courses"
-            description="Try a different search term or clear the group filters to see everything."
+            title="No matching courses active"
+            description="Try a different search term or clear the group filters to see everything or contact administrator to request access."
             action={
               hasActiveFilters
                 ? { label: "Clear filters", onClick: clearFilters }

@@ -1612,11 +1612,11 @@ function SortableModuleRow({
         <Button
           variant="ghost"
           size="icon"
-          className="h-8 w-8"
+          className="h-8 w-8 "
           onClick={onOpen}
           title="Edit module"
         >
-          <Pencil className="h-4 w-4" />
+          <Pencil className="h-4 w-4 " />
         </Button>
       </div>
       <div className="flex justify-center">
