@@ -604,7 +604,7 @@ function ModuleCard({
           <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
             Module {index + 1}
           </p>
-          <h3 className="mt-0.5 text-base font-semibold leading-tight transition-colors group-hover:text-[var(--accent)]">
+          <h3 className="mt-0.5 text-base font-semibold leading-tight transition-colors group-hover:text-[var(--accent)] line-clamp-1 hover:text-nowrap">
             {module.title}
           </h3>
           <div className="mt-4 flex items-center justify-between">
