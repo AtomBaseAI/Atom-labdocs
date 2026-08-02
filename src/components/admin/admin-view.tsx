@@ -678,10 +678,10 @@ function OverviewPanel({
 
       {/* Stats */}
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <StatCard icon={Layers2} label="Course Groups" value={totalGroups} color="text-rose-600" tint="oklch(0.65 0.22 15 / 0.45)" />
         <StatCard icon={BookOpen} label="Courses" value={courses.length} color="text-teal-600" tint="oklch(0.77 0.13 180 / 0.45)" />
         <StatCard icon={FlaskConical} label="Labs" value={totalLabs} color="text-violet-600" tint="oklch(0.62 0.19 300 / 0.40)" />
         <StatCard icon={Presentation} label="Modules" value={totalModules} color="text-amber-600" tint="oklch(0.78 0.16 70 / 0.45)" />
-        <StatCard icon={Layers2} label="Course Groups" value={totalGroups} color="text-rose-600" tint="oklch(0.65 0.22 15 / 0.45)" />
       </div>
 
       {/* Collapsible admin sections — All Courses open by default, then Course Groups, then Import/Export */}

@@ -25,6 +25,8 @@ import {
   Search,
   X,
   SlidersHorizontal,
+  BookA,
+  BookText,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -57,14 +59,19 @@ export function PublicView() {
 
   const courseQuery = useQuery({
     queryKey: ["course", nav.selectedCourseId],
-    queryFn: () => fetchJson<Course & { labs: Lab[] }>("/api/courses/" + nav.selectedCourseId),
+    queryFn: () =>
+      fetchJson<Course & { labs: Lab[] }>(
+        "/api/courses/" + nav.selectedCourseId,
+      ),
     enabled: !!nav.selectedCourseId,
   });
 
   const labQuery = useQuery({
     queryKey: ["lab", nav.selectedLabId],
     queryFn: () =>
-      fetchJson<Lab & { course: Course; modules: Module[] }>("/api/labs/" + nav.selectedLabId),
+      fetchJson<Lab & { course: Course; modules: Module[] }>(
+        "/api/labs/" + nav.selectedLabId,
+      ),
     enabled: !!nav.selectedLabId,
   });
 
@@ -72,7 +79,7 @@ export function PublicView() {
     queryKey: ["module", nav.selectedModuleId],
     queryFn: () =>
       fetchJson<Module & { lab: Lab & { course: Course }; steps: Step[] }>(
-        "/api/modules/" + nav.selectedModuleId
+        "/api/modules/" + nav.selectedModuleId,
       ),
     enabled: !!nav.selectedModuleId,
   });
@@ -81,11 +88,15 @@ export function PublicView() {
   const groupsQuery = useQuery({
     queryKey: ["course-groups"],
     queryFn: () =>
-      fetchJson<(CourseGroup & { _count: { courses: number } })[]>("/api/course-groups"),
+      fetchJson<(CourseGroup & { _count: { courses: number } })[]>(
+        "/api/course-groups",
+      ),
   });
 
   const [search, setSearch] = useState("");
-  const [selectedGroupIds, setSelectedGroupIds] = useState<Set<string>>(new Set());
+  const [selectedGroupIds, setSelectedGroupIds] = useState<Set<string>>(
+    new Set(),
+  );
 
   const toggleGroup = (id: string) =>
     setSelectedGroupIds((prev) => {
@@ -105,11 +116,10 @@ export function PublicView() {
     if (!coursesQuery.data) return [];
     const q = search.trim().toLowerCase();
     return coursesQuery.data.filter((c) => {
-      const matchesSearch =
-        !q ||
-        c.title.toLowerCase().includes(q);
+      const matchesSearch = !q || c.title.toLowerCase().includes(q);
       const matchesGroup =
-        selectedGroupIds.size === 0 || (!!c.groupId && selectedGroupIds.has(c.groupId));
+        selectedGroupIds.size === 0 ||
+        (!!c.groupId && selectedGroupIds.has(c.groupId));
       return matchesSearch && matchesGroup;
     });
   }, [coursesQuery.data, search, selectedGroupIds]);
@@ -118,7 +128,9 @@ export function PublicView() {
 
   // Build a "group" crumb that sits between "Courses" and the course name.
   // Clicking it returns to the full course list (no group-filtered view exists).
-  const groupCrumb = (group?: CourseGroup | null): { label: string; onClick: () => void }[] =>
+  const groupCrumb = (
+    group?: CourseGroup | null,
+  ): { label: string; onClick: () => void }[] =>
     group ? [{ label: group.name, onClick: nav.goRoot }] : [];
 
   // Module presentation view
@@ -130,9 +142,18 @@ export function PublicView() {
             { label: "Courses", onClick: nav.goRoot },
             ...groupCrumb(moduleQuery.data.lab.course.group),
             ...(moduleQuery.data.lab.course
-              ? [{ label: moduleQuery.data.lab.course.title, onClick: () => nav.goToCourseFromModule(moduleQuery.data.lab.course.id) }]
+              ? [
+                  {
+                    label: moduleQuery.data.lab.course.title,
+                    onClick: () =>
+                      nav.goToCourseFromModule(moduleQuery.data.lab.course.id),
+                  },
+                ]
               : []),
-            { label: moduleQuery.data.lab.title, onClick: () => nav.goToLabFromModule(moduleQuery.data.lab.id) },
+            {
+              label: moduleQuery.data.lab.title,
+              onClick: () => nav.goToLabFromModule(moduleQuery.data.lab.id),
+            },
             { label: moduleQuery.data.title },
           ]}
         />
@@ -159,13 +180,24 @@ export function PublicView() {
             { label: "Courses", onClick: nav.goRoot },
             ...groupCrumb(labQuery.data.course.group),
             ...(labQuery.data.course
-              ? [{ label: labQuery.data.course.title, onClick: () => nav.goToCourseFromModule(labQuery.data.course.id) }]
+              ? [
+                  {
+                    label: labQuery.data.course.title,
+                    onClick: () =>
+                      nav.goToCourseFromModule(labQuery.data.course.id),
+                  },
+                ]
               : []),
             { label: labQuery.data.title },
           ]}
         />
         <div>
-          <h1 className="text-2xl font-bold tracking-tight" style={{ color: courseAccent(labQuery.data.course) }}>{labQuery.data.title}</h1>
+          <h1
+            className="text-2xl font-bold tracking-tight"
+            style={{ color: courseAccent(labQuery.data.course) }}
+          >
+            {labQuery.data.title}
+          </h1>
         </div>
         {labQuery.data.modules.length === 0 ? (
           <EmptyState
@@ -211,10 +243,12 @@ export function PublicView() {
             className="flex h-12 w-12 items-center justify-center rounded-xl text-2xl"
             style={{ background: courseAccent(courseQuery.data) + "22" }}
           >
-            {courseQuery.data.icon ?? "📘"}
+            <BookText className="h-5 w-5" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold tracking-tight">{courseQuery.data.title}</h1>
+            <h1 className="text-2xl font-bold tracking-tight">
+              {courseQuery.data.title}
+            </h1>
           </div>
         </div>
         {courseQuery.data.labs.length === 0 ? (
@@ -254,7 +288,9 @@ export function PublicView() {
         <div className="inline-flex w-fit items-center gap-2 rounded-full border bg-muted/40 px-3 py-1 text-xs font-medium">
           <BookOpen className="h-3.5 w-3.5" /> Public Library
         </div>
-        <h1 className="text-3xl font-bold tracking-tight">Explore Lab Courses</h1>
+        <h1 className="text-3xl font-bold tracking-tight">
+          Explore Lab Courses
+        </h1>
       </div>
 
       {/* Search + course-group filter toolbar */}
@@ -281,7 +317,12 @@ export function PublicView() {
         filteredCourses.length > 0 ? (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {filteredCourses.map((course, i) => (
-              <CourseCard key={course.id} course={course} index={i} onClick={() => nav.goToCourse(course.id)} />
+              <CourseCard
+                key={course.id}
+                course={course}
+                index={i}
+                onClick={() => nav.goToCourse(course.id)}
+              />
             ))}
           </div>
         ) : (
@@ -289,7 +330,11 @@ export function PublicView() {
             icon={Search}
             title="No matching courses"
             description="Try a different search term or clear the group filters to see everything."
-            action={hasActiveFilters ? { label: "Clear filters", onClick: clearFilters } : undefined}
+            action={
+              hasActiveFilters
+                ? { label: "Clear filters", onClick: clearFilters }
+                : undefined
+            }
           />
         )
       ) : (
@@ -321,7 +366,9 @@ function Breadcrumbs({
               {item.label}
             </button>
           ) : (
-            <span className="max-w-[220px] truncate font-medium text-foreground">{item.label}</span>
+            <span className="max-w-[220px] truncate font-medium text-foreground">
+              {item.label}
+            </span>
           )}
         </span>
       ))}
@@ -338,7 +385,9 @@ function GroupBadge({ group }: { group?: CourseGroup | null }) {
       className="gap-1 border-white/40 bg-white/50 px-2 py-0.5 text-[11px] font-medium backdrop-blur-sm dark:border-white/10 dark:bg-white/5"
       style={{ color: group.color ?? DEFAULT_ACCENT }}
     >
-      {group.icon && <span className="text-[0.95em] leading-none">{group.icon}</span>}
+      {group.icon && (
+        <span className="text-[0.95em] leading-none">{group.icon}</span>
+      )}
       <span className="max-w-[130px] truncate">{group.name}</span>
     </Badge>
   );
@@ -390,34 +439,37 @@ function CourseCard({
       <div className={cn(GLASS_FACE)}>
         <AccentGlow color={color} />
         <div className="relative z-10 p-5">
-        <div className="mb-3 flex items-center justify-between gap-2">
-          <div
-            className="flex h-12 w-12 items-center justify-center rounded-xl text-2xl"
-            style={{ background: color + "22" }}
-          >
-            {course.icon ?? "📘"}
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <div
+              className="flex h-12 w-12 items-center justify-center rounded-xl text-2xl"
+              style={{ background: color + "22" }}
+            >
+              <BookText className="h-5 w-5" />
+            </div>
+            <GroupBadge group={course.group} />
           </div>
-          <GroupBadge group={course.group} />
-        </div>
-        <h3 className="text-lg font-semibold leading-tight group-hover:text-primary">
-          {course.title}
-        </h3>
-        <div className="mt-4 flex items-center justify-between">
-          <span className="text-xs font-medium text-muted-foreground">
-            {(course._count?.labs ?? 0)} labs
-          </span>
-          {course.locked ? (
-            <div className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
-              Course locked
-              <Lock className="h-4 w-4" />
-            </div>
-          ) : (
-            <div className="flex items-center gap-1.5 text-sm font-medium" style={{ color }}>
-              Open course
-              <ChevronRight className="h-4 w-4 transition group-hover:translate-x-0.5" />
-            </div>
-          )}
-        </div>
+          <h3 className="text-lg font-semibold leading-tight group-hover:text-primary">
+            {course.title}
+          </h3>
+          <div className="mt-4 flex items-center justify-between">
+            <span className="text-xs font-medium text-muted-foreground">
+              {course._count?.labs ?? 0} labs
+            </span>
+            {course.locked ? (
+              <div className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
+                Course locked
+                <Lock className="h-4 w-4" />
+              </div>
+            ) : (
+              <div
+                className="flex items-center gap-1.5 text-sm font-medium"
+                style={{ color }}
+              >
+                Open course
+                <ChevronRight className="h-4 w-4 transition group-hover:translate-x-0.5" />
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </Card>
@@ -439,13 +491,17 @@ function LabCard({
 }) {
   const hasLink = lab.linkType !== "none" && !!lab.linkUrl;
   const LinkIcon =
-    lab.linkType === "download" ? FileArchive
-    : lab.linkType === "watch" ? PlayIcon
-    : GlobeIcon;
+    lab.linkType === "download"
+      ? FileArchive
+      : lab.linkType === "watch"
+        ? PlayIcon
+        : GlobeIcon;
   const linkLabel =
-    lab.linkType === "download" ? "Download"
-    : lab.linkType === "watch" ? "Watch"
-    : "Browse";
+    lab.linkType === "download"
+      ? "Download"
+      : lab.linkType === "watch"
+        ? "Watch"
+        : "Browse";
   return (
     <Card
       className={cn(CARD_OUTER, "p-0", lab.locked && "cursor-not-allowed")}
@@ -463,40 +519,48 @@ function LabCard({
             >
               <FlaskConical className="h-5 w-5" />
             </div>
-            <GroupBadge group={group} />
+            <div className="flex items-center gap-2 justify-center">
+              {hasLink && (
+                <a
+                  href={lab.linkUrl!}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={(e) => e.stopPropagation()}
+                  className="inline-flex items-center gap-1 rounded-md bg-background px-2 py-1 text-xs font-medium text-foreground transition hover:bg-accent hover:text-white"
+                  aria-label={linkLabel}
+                >
+                  <LinkIcon className="h-3.5 w-3.5" />
+                  {linkLabel}
+                </a>
+              )}
+
+              <GroupBadge group={group} />
+            </div>
           </div>
-          <h3 className="min-w-0 text-base font-semibold leading-tight transition-colors group-hover:text-[var(--accent)]">{lab.title}</h3>
-        <div className="mt-4 flex items-center justify-between gap-2">
-          <span className="text-xs font-medium text-muted-foreground">
-            {(lab._count?.modules ?? 0)} modules
-          </span>
-          <div className="flex items-center gap-2">
-            {hasLink && (
-              <a
-                href={lab.linkUrl!}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={(e) => e.stopPropagation()}
-                className="inline-flex items-center gap-1 rounded-md border bg-background px-2 py-1 text-xs font-medium text-foreground transition hover:bg-accent hover:text-accent-foreground"
-                aria-label={linkLabel}
-              >
-                <LinkIcon className="h-3.5 w-3.5" />
-                {linkLabel}
-              </a>
-            )}
-            {lab.locked ? (
-              <span className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
-                Lab locked
-                <Lock className="h-4 w-4" />
-              </span>
-            ) : (
-              <span className="flex items-center gap-1.5 text-sm font-medium" style={{ color: accent }}>
-                Open lab
-                <ChevronRight className="h-4 w-4 transition group-hover:translate-x-0.5" />
-              </span>
-            )}
+          <h3 className="min-w-0 text-base font-semibold leading-tight transition-colors group-hover:text-[var(--accent)] line-clamp-1 hover:text-nowrap">
+            {lab.title}
+          </h3>
+          <div className="mt-4 flex items-center justify-between gap-2">
+            <span className="text-xs font-medium text-muted-foreground">
+              {lab._count?.modules ?? 0} modules
+            </span>
+            <div className="flex items-center gap-2">
+              {lab.locked ? (
+                <span className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
+                  Lab locked
+                  <Lock className="h-4 w-4" />
+                </span>
+              ) : (
+                <span
+                  className="flex items-center gap-1.5 text-sm font-medium"
+                  style={{ color: accent }}
+                >
+                  Open lab
+                  <ChevronRight className="h-4 w-4 transition group-hover:translate-x-0.5" />
+                </span>
+              )}
+            </div>
           </div>
-        </div>
         </div>
       </div>
     </Card>
@@ -534,31 +598,34 @@ function ModuleCard({
               style={{ background: accent + "22", color: accent }}
             >
               <Presentation className="h-5 w-5" />
+            </div>
+            <GroupBadge group={group} />
           </div>
-          <GroupBadge group={group} />
-        </div>
-        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-          Module {index + 1}
-        </p>
-        <h3 className="mt-0.5 text-base font-semibold leading-tight transition-colors group-hover:text-[var(--accent)]">
-          {module.title}
-        </h3>
-        <div className="mt-4 flex items-center justify-between">
-          <span className="rounded-full bg-muted/70 px-2 py-0.5 text-xs font-medium text-muted-foreground backdrop-blur-sm">
-            {slideCount} slides
-          </span>
-          {module.locked ? (
-            <div className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
-              Slides locked
-              <Lock className="h-4 w-4" />
-            </div>
-          ) : (
-            <div className="flex items-center gap-1.5 text-sm font-medium" style={{ color: accent }}>
-              <Play /> Present slides
-              <ChevronRight className="h-4 w-4 transition group-hover:translate-x-0.5" />
-            </div>
-          )}
-        </div>
+          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            Module {index + 1}
+          </p>
+          <h3 className="mt-0.5 text-base font-semibold leading-tight transition-colors group-hover:text-[var(--accent)]">
+            {module.title}
+          </h3>
+          <div className="mt-4 flex items-center justify-between">
+            <span className="rounded-full bg-muted/70 px-2 py-0.5 text-xs font-medium text-muted-foreground backdrop-blur-sm">
+              {slideCount} slides
+            </span>
+            {module.locked ? (
+              <div className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
+                Slides locked
+                <Lock className="h-4 w-4" />
+              </div>
+            ) : (
+              <div
+                className="flex items-center gap-1.5 text-sm font-medium"
+                style={{ color: accent }}
+              >
+                <Play /> Present slides
+                <ChevronRight className="h-4 w-4 transition group-hover:translate-x-0.5" />
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </Card>
@@ -586,9 +653,16 @@ function EmptyState({
         <Icon className="h-7 w-7 text-muted-foreground" />
       </div>
       <h3 className="text-lg font-semibold">{title}</h3>
-      <p className="mt-1 max-w-sm text-sm text-muted-foreground">{description}</p>
+      <p className="mt-1 max-w-sm text-sm text-muted-foreground">
+        {description}
+      </p>
       {action && (
-        <Button variant="outline" size="sm" className="mt-4 gap-1.5" onClick={action.onClick}>
+        <Button
+          variant="outline"
+          size="sm"
+          className="mt-4 gap-1.5"
+          onClick={action.onClick}
+        >
           <X className="h-3.5 w-3.5" />
           {action.label}
         </Button>
@@ -643,10 +717,16 @@ function SearchFilterToolbar({
         </div>
         <div className="flex items-center justify-between gap-3 sm:shrink-0">
           <span className="text-xs text-muted-foreground">
-            <span className="font-medium text-foreground">{resultCount}</span> of {totalCount}
+            <span className="font-medium text-foreground">{resultCount}</span>{" "}
+            of {totalCount}
           </span>
           {hasFilters && (
-            <Button variant="ghost" size="sm" className="gap-1.5" onClick={onClear}>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="gap-1.5"
+              onClick={onClear}
+            >
               <X className="h-3.5 w-3.5" /> Clear
             </Button>
           )}
@@ -693,16 +773,20 @@ function GroupFilterChip({
         "inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-all",
         active
           ? "border-transparent text-white shadow-sm"
-          : "border-border bg-background/60 text-foreground hover:bg-accent"
+          : "border-border bg-background/60 text-foreground hover:bg-accent",
       )}
-      style={active ? { backgroundColor: color, borderColor: color } : undefined}
+      style={
+        active ? { backgroundColor: color, borderColor: color } : undefined
+      }
     >
-      {group.icon && <span className="text-[0.95em] leading-none">{group.icon}</span>}
+      {group.icon && (
+        <span className="text-[0.95em] leading-none">{group.icon}</span>
+      )}
       <span className="max-w-[140px] truncate">{group.name}</span>
       <span
         className={cn(
           "ml-0.5 rounded-full px-1.5 py-px text-[10px] font-semibold tabular-nums",
-          active ? "bg-white/25 text-white" : "bg-muted text-muted-foreground"
+          active ? "bg-white/25 text-white" : "bg-muted text-muted-foreground",
         )}
       >
         {group._count.courses}
