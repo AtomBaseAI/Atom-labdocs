@@ -191,3 +191,4 @@ storybook-static/
 !.env.example
 !.gitkeep
 next-env.d.ts
+bun.lock
